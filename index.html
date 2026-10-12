@@ -1,7 +1,7 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>Star Tiles</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="theme-color" content="#1b3f8f">
-<link rel="stylesheet" href="style.css?v=24"></head><body>
+<link rel="stylesheet" href="style.css?v=25"></head><body>
 <div id="app">
 <header><button class="btn sq" id="menuBtn" aria-label="Menu">🏠</button>
 <div id="hud"><div class="names"><span id="n0" class="p0">DHAVAL P</span><span class="vs">·VS·</span><span id="n1">COMPUTER</span></div>
@@ -27,8 +27,8 @@
 <div class="diff" id="diff"><button data-d="easy">EASY</button><button data-d="medium">MEDIUM</button><button data-d="hard">HARD</button><button data-d="expert">EXPERT</button></div>
 <button class="btn big" id="vsAI">Play vs COMPUTER</button><button class="btn big" id="vsP">Pass &amp; Play (2 players)</button>
 <div class="online"><button class="btn big" id="hostBtn">🌐 Host online game</button>
-<div class="joinrow"><input id="joinCode" maxlength="14" placeholder="ROOM CODE" autocapitalize="characters" autocomplete="off"><button class="btn" id="joinBtn">Join</button></div></div><div id="ver">v24</div></div></div>
-</div><script src="logic.js?v=24"></script><script src="online.js?v=24"></script><script src="app.js?v=24"></script>
+<div class="joinrow"><input id="joinCode" maxlength="14" placeholder="ROOM CODE" autocapitalize="characters" autocomplete="off"><button class="btn" id="joinBtn">Join</button></div></div><div id="ver">v25</div></div></div>
+</div><script src="logic.js?v=25"></script><script src="online.js?v=25"></script><script src="app.js?v=25"></script>
 <script>
 if('serviceWorker'in navigator){let reloaded=false;const had=!!navigator.serviceWorker.controller;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloaded||!had)return;try{if(document.getElementById('onl').classList.contains('show')||(typeof g!=='undefined'&&g&&g.mode==='online'))return;}catch(e){} // v24: never reload mid-connect / online game

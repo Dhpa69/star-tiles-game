@@ -8,7 +8,7 @@ const Online=(function(){
  const clean=c=>String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
  const rnd=()=>{const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<6;i++)s+=A[Math.floor(Math.random()*A.length)];return s;};
  function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
- function send(msg,tries){msg.from=st.id;const topic=st.topic;return fetch(RELAY+topic,{method:'POST',body:JSON.stringify(msg)}).then(r=>{if(r.status===429||!r.ok)throw new Error(r.status);}).catch(e=>{st.handlers.status&&st.handlers.status(String(e.message)==='429'?'Relay busy (rate limited) – retrying…':'Connection problem – retrying…');if((tries||0)<5&&topic===st.topic)setTimeout(()=>send(msg,(tries||0)+1),2000*((tries||0)+1));});}
+ function send(msg,tries){msg.from=st.id;const topic=st.topic;return fetch(RELAY+topic,{method:'POST',body:JSON.stringify(msg)}).then(r=>{if(r.status===429||!r.ok)throw new Error(r.status);st.netOk=Date.now();}).catch(e=>{st.handlers.status&&st.handlers.status(String(e.message)==='429'?'Relay busy (rate limited) – retrying…':'Connection problem – retrying…');if((tries||0)<5&&topic===st.topic)setTimeout(()=>send(msg,(tries||0)+1),String(e.message)==='429'?15000*((tries||0)+1):3000*((tries||0)+1));});}
  // v24: two transports. SSE (fast) + fetch polling /json?poll=1&since=<last id> (reliable on iOS, where
  // EventSource dies in the background / home-screen PWA). Same handler + dedupe by ntfy message id.
  function handle(env){let d;if(!env||env.event&&env.event!=='message')return;try{d=JSON.parse(env.message);}catch(_){return;}
@@ -16,20 +16,22 @@ const Online=(function(){
   d._old=env.time&&env.time*1000<st.since-5000;if(!d._old)st.lastSeen=Date.now();st.lastAct=Math.max(st.lastAct||0,(env.time||0)*1000);st.handlers.msg&&st.handlers.msg(d);}
  const status=t=>{st.handlers.status&&st.handlers.status(t);};
  function openSSE(){try{if(st.es)st.es.close();}catch(e){}if(typeof EventSource==='undefined')return;st.es=new EventSource(RELAY+st.topic+'/sse?since=all');
-  st.es.onopen=()=>{st.sseOk=true;};st.es.onmessage=e=>{let env;try{env=JSON.parse(e.data);}catch(_){return;}handle(env);};
+  st.es.onopen=()=>{st.sseOk=true;st.netOk=Date.now();};st.es.onmessage=e=>{let env;try{env=JSON.parse(e.data);}catch(_){return;}handle(env);};
   st.es.onerror=()=>{st.sseOk=false;};}
  async function pollNow(){if(!st.on||!st.topic||st.polling)return;st.polling=true;const topic=st.topic;
   try{const r=await fetch(RELAY+topic+'/json?poll=1&since='+encodeURIComponent(st.pollId||'all'),{cache:'no-store'});
-   if(r.status===429){st.backoff=Math.min((st.backoff||4000)*1.5,st.seed==null?12000:30000);status('Relay busy (rate limited) – retrying in '+Math.round(st.backoff/1000)+'s…');return;}
+   if(r.status===429){st.backoff=Math.max(15000,Math.min((st.backoff||10000)*1.5,90000));status('Relay busy (rate limited) – retrying in '+Math.round(st.backoff/1000)+'s…');return;}
    if(!r.ok){status('Relay error '+r.status+' – retrying…');return;}st.backoff=0;st.netOk=Date.now();
    const txt=await r.text();if(topic!==st.topic)return;for(const line of txt.split('\n')){if(!line.trim())continue;try{handle(JSON.parse(line));}catch(e){}}
    st.handlers.ok&&st.handlers.ok();}
   catch(e){status('No connection to relay – retrying…');}finally{st.polling=false;}}
  function loop(){clearTimeout(st.loopT);if(!st.on)return;const waiting=st.seed==null,vis=typeof document==='undefined'||document.visibilityState==='visible';
   // waiting room: poll every 4s; in game: poll every 6s if SSE is down, else a 20s safety poll
-  const gap=st.backoff||(waiting?4000:(st.sseOk?20000:6000));if(vis)pollNow();st.loopT=setTimeout(loop,gap);}
- function listen(){st.since=Date.now();st.sseOk=false;st.pollId=null;openSSE();loop();}
- if(typeof document!=='undefined')document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&st.on){if(!st.es||st.es.readyState===2)openSSE();pollNow();}});
+  // v25: the live SSE connection is the transport; poll only while it is down, at most every 10s (15s+ after a 429)
+  if(vis&&!st.sseOk&&(st.loopN++>0||!st.es||st.es.readyState===2))pollNow();if(!st.sseOk&&st.es&&st.es.readyState===2)openSSE();
+  const gap=st.backoff||(waiting?10000:15000);st.loopT=setTimeout(loop,gap);}
+ function listen(){st.since=Date.now();st.sseOk=false;st.pollId=null;st.loopN=0;st.backoff=0;openSSE();clearTimeout(st.loopT);st.loopT=setTimeout(loop,st.es?10000:1000);}
+ if(typeof document!=='undefined')document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&st.on){if(!st.es||st.es.readyState===2)openSSE();}});
  // v22: many games at once, stored by room code in GKEY (old single-game SKEY migrated on first read)
  const GKEY='startiles.online.games';
  function all(){let m=null;try{m=JSON.parse(localStorage.getItem(GKEY));}catch(e){}if(!m||typeof m!=='object')m={};
@@ -37,23 +39,29 @@ const Online=(function(){
  function putAll(m){try{localStorage.setItem(GKEY,JSON.stringify(m));}catch(e){}}
  function upd(code,f){const m=all();if(!m[code])return;f(m[code]);putAll(m);}
  function persist(extra){if(!st.on||!st.code)return;const m=all(),o=m[st.code]||{};m[st.code]=Object.assign(o,{v:2,code:st.code,me:st.me,host:st.host,id:st.id,seed:st.seed,names:st.names,coins:st.coins,log:st.log,savedAt:Date.now(),lastAct:Math.max(o.lastAct||0,st.lastAct||0)},extra||{});putAll(m);}
- // background polling of the rooms that are NOT open (ntfy /json?poll=1&since=<last id>), staggered, with backoff on 429/errors
- let pollGap=60000,pollT=null,polling=false;
- async function pollOne(s,h){const since=s.pollId||'all';let r;try{r=await fetch(RELAY+'startiles-room-'+s.code+'/json?poll=1&since='+encodeURIComponent(since));}catch(e){return 'err';}
-  if(r.status===429)return 'limit';if(!r.ok)return 'err';const txt=await r.text();const msgs=[];
-  for(const line of txt.split('\n')){if(!line.trim())continue;let env,d;try{env=JSON.parse(line);if(env.event!=='message')continue;d=JSON.parse(env.message);}catch(e){continue;}msgs.push({env,d});}
-  let changed=false;const m=all(),o=m[s.code];if(!o)return 'ok';
-  for(const {env,d} of msgs){o.pollId=env.id;if(!d||d.from===o.id)continue;o.lastAct=Math.max(o.lastAct||0,(env.time||0)*1000);
-   if(d.t==='act'&&typeof d.n==='number'&&d.n===o.log.length){o.log.push(d.a);changed=true;}
-   else if(d.t==='start'&&o.seed==null&&!o.host){o.seed=d.seed;o.names=d.names;o.coins=d.coins;changed=true;}
-   else if(d.t==='hello'&&o.host&&o.seed==null){o.helloFrom={name:d.name,coins:d.coins};changed=true;}
-   else if(d.t==='rematch'&&d.code){o.rematch=d.code;changed=true;}}
-  putAll(m);if(changed&&h)h(o);return 'ok';}
- async function pollAll(h){if(polling)return;polling=true;let bad=false;
-  try{const m=all();for(const code in m){if(st.on&&st.code===code)continue;const s=m[code];if(s.removed)continue;
-   const r=await pollOne(s,h);if(r==='limit'){bad=true;break;}if(r==='err')bad=true;await new Promise(z=>setTimeout(z,1200));}}finally{polling=false;}
-  pollGap=bad?Math.min(pollGap*2,600000):60000;clearTimeout(pollT);pollT=setTimeout(()=>pollAll(h),pollGap);}
- return {st,mulberry,send,persist,all,upd,pollAll,pollNow,clean,
+ // v25: other saved rooms are checked with ONE multi-topic request (ntfy "t1,t2,.../json?poll=1&since=<unix>"),
+ // at most every 3 min (10 min after a 429), never while connecting to a room. Rooms finished >1 day ago are skipped.
+ let pollGap=180000,pollT=null,polling=false,lastPoll=0;
+ function applyBg(o,env,d){o.pollTime=Math.max(o.pollTime||0,env.time||0);if(!d||d.from===o.id)return false;o.lastAct=Math.max(o.lastAct||0,(env.time||0)*1000);
+  if(d.t==='act'&&typeof d.n==='number'&&d.n===o.log.length){o.log.push(d.a);return true;}
+  if(d.t==='start'&&o.seed==null&&!o.host){o.seed=d.seed;o.names=d.names;o.coins=d.coins;return true;}
+  if(d.t==='hello'&&o.host&&o.seed==null){o.helloFrom={name:d.name,coins:d.coins};return true;}
+  if(d.t==='rematch'&&d.code){o.rematch=d.code;return true;}return false;}
+ async function pollAll(h,force){if(polling)return;clearTimeout(pollT);pollT=setTimeout(()=>pollAll(h),pollGap);
+  if(st.on&&st.seed==null)return; // connecting: leave the request budget to the room
+  if(!force&&Date.now()-lastPoll<Math.min(pollGap,60000))return;
+  const m=all(),codes=Object.keys(m).filter(c=>!(st.on&&st.code===c)&&!m[c].removed&&!(m[c].over&&Date.now()-(m[c].lastAct||0)>86400000));
+  if(!codes.length)return;polling=true;lastPoll=Date.now();
+  try{const since=Math.max(Math.floor(Date.now()/1000)-43200,Math.min(...codes.map(c=>(m[c].pollTime||0)))+0);
+   const r=await fetch(RELAY+codes.map(c=>'startiles-room-'+c).join(',')+'/json?poll=1&since='+(since>0?since:'all'),{cache:'no-store'});
+   if(r.status===429){pollGap=600000;return;}if(!r.ok)return;pollGap=180000;const txt=await r.text();
+   const mm=all(),changed=new Set(),seen=new Set();
+   for(const line of txt.split('\n')){if(!line.trim())continue;let env,d;try{env=JSON.parse(line);if(env.event!=='message')continue;d=JSON.parse(env.message);}catch(e){continue;}
+    if(seen.has(env.id))continue;seen.add(env.id);const code=(env.topic||'').replace('startiles-room-','');const o=mm[code];if(!o)continue;if(applyBg(o,env,d))changed.add(code);}
+   putAll(mm);if(h)changed.forEach(c=>h(mm[c]));}
+  catch(e){}finally{polling=false;}}
+ let reqs=0;const _f=typeof fetch!=='undefined'?fetch:null;if(_f&&typeof window!=='undefined'){window.fetch=function(u){if(String(u).indexOf('ntfy.sh')>=0)reqs++;return _f.apply(this,arguments);};}
+ return {get reqs(){return reqs;},st,mulberry,send,persist,all,upd,pollAll,pollNow,clean,
   get pollGap(){return pollGap;},
   saved(code){const m=all();if(code)return m[code]||null;const c=st.code&&m[st.code]?st.code:Object.keys(m)[0];return c?m[c]:null;},
   clear(code){const m=all();delete m[code||st.code];putAll(m);},

@@ -149,8 +149,8 @@ function onMsg(d){const S=Online.st;
  else if(d.t==='away'){S.lastSeen=0;updOnl();}
  else if(d.t==='rematch'&&d.code){Online.persist({rematch:d.code});say('Rematch offered! See My online games');}
  renderGames();}
-function updOnl(){const el=$('ostat');if(!isOn()||g.over){el.className='';return;}const away=Date.now()-Online.st.lastSeen>45000;el.textContent=away?'⚠ '+NAMES()[1-meIdx()]+' away / reconnecting…':'🌐 Online · room '+Online.st.code;el.className=away?'show away':'show';}
-setInterval(()=>{if(isOn()&&!g.over){if(document.visibilityState==='visible')Online.ping();updOnl();}},25000);
+function updOnl(){const el=$('ostat');if(!isOn()||g.over){el.className='';return;}const away=Date.now()-Online.st.lastSeen>200000;el.textContent=away?'⚠ '+NAMES()[1-meIdx()]+' away / reconnecting…':'🌐 Online · room '+Online.st.code;el.className=away?'show away':'show';}
+setInterval(()=>{if(isOn()&&!g.over){if(document.visibilityState==='visible')Online.ping();updOnl();}},90000); // v25: keepalive 90s
 setInterval(()=>{if(isOn())updOnl();},5000);
 document.addEventListener('visibilitychange',()=>{if(!isOn())return;if(document.visibilityState==='visible'){Online.ping('back');}else Online.ping('away');});
 function beginOnline(seed,names,coins,log){pending.length=0;stopWait();g=L.newGame('pvp',Online.mulberry(seed));g.mode='online';g.names=names;g.coins=coins.slice();g.coinsStart=coins.slice();g.started=true;Online.setGame(seed,names,coins);(log||[]).forEach(applySilent);
@@ -223,7 +223,7 @@ function onPolled(o){const me=o.me|0;
  const G=replayGame(o);if(G&&!G.over&&G.turn===me&&o.notified!==o.log.length){Online.upd(o.code,x=>x.notified=x.log.length);if(!profile.muted)SFX.chime(120);say('🔔 Your turn vs '+(o.names?o.names[1-me]:'friend'));}
  if(o.rematch&&o.over&&!o.rmNote){Online.upd(o.code,x=>x.rmNote=1);say('🔁 '+(o.names?o.names[1-me]:'Friend')+' wants a rematch');}
  renderGames();}
-Online.pollAll(onPolled);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')Online.pollAll(onPolled);});addEventListener('focus',()=>Online.pollAll(onPolled));
+Online.pollAll(onPolled);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')Online.pollAll(onPolled);});
 
 // ---- v23: quit / resign ----
 function resignStored(o){const me=o.me|0,n=(o.log||[]).length,act={type:'resign',p:me};Online.sendTo(o.code,o.id,{t:'act',n,a:act});
@@ -241,9 +241,9 @@ let waitT=null,waitStart=0;
 function stopWait(){clearInterval(waitT);waitT=null;const r=$('onlRetry');if(r)r.style.display='none';}
 function onlErr(t){const e=$('onlerr');if(e)e.textContent=t||'';}
 function startWait(){stopWait();waitStart=Date.now();onlErr('');
- waitT=setInterval(()=>{const S=Online.st;if(!S.on||S.seed!=null){stopWait();return;}const sec=Math.round((Date.now()-waitStart)/1000),net=S.netOk&&Date.now()-S.netOk<15000;
+ waitT=setInterval(()=>{const S=Online.st;if(!S.on||S.seed!=null){stopWait();return;}const sec=Math.round((Date.now()-waitStart)/1000),net=S.sseOk||(S.netOk&&Date.now()-S.netOk<30000);
   const conn=net?'✓ Connected to relay':'… connecting to relay';
-  if(!S.host){if(sec%5===0)Online.send({t:'hello',name:profile.name,coins:profile.coins});$('onlmsg').textContent=conn+' · asking host to start ('+sec+'s)';}
+  if(!S.host){if(sec%10===0&&sec>0)Online.send({t:'hello',name:profile.name,coins:profile.coins});$('onlmsg').textContent=conn+' · asking host to start ('+sec+'s)';}
   else $('onlmsg').textContent=conn+' · waiting for a friend to join ('+sec+'s). Share the code.';
   const lim=S.host?180:45;if(sec>=lim){$('onlRetry').style.display='block';onlErr(S.host?'No one has joined yet. Check your friend typed the code, then tap Retry.':(net?'The host isn\u2019t answering. Make sure the host has this room open, check the code, then Retry.':'Can\u2019t reach the relay (ntfy.sh). Check your internet, then Retry.'));}},1000);}
 $('onlRetry').onclick=()=>{const S=Online.st,o=Online.saved(S.code);if(!o)return;Online.resume(o,{msg:onMsg,status:onlStatus});if(!o.host)Online.send({t:'hello',name:profile.name,coins:profile.coins});startWait();};
