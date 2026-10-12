@@ -92,8 +92,43 @@ function blast(g,type,r,c){if(!canPower(g))return null;const pops=[];
  usePower(g);return {pops,cells:blastCells(type,r,c)};}
 function countFits(g){const rack=g.racks[g.turn];let n=0;for(let s=0;s<3;s++){if(!rack[3*s])continue;for(const o of [0,1])for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(validPiece(g.board,[],pieceTiles(rack,s,o,r,c)))n++;}return n;}
 // bot turn: blast when crowded, then greedy move (may double if no blast used)
+// ---- EXPERT: beam search over piece sequences with setup lookahead, time-budgeted ----
+function pairsValue(b){let v=0;for(let r=0;r<N;r++)for(let c=0;c<N;c++){const t=b[r][c];if(!t||t.star)continue;
+ for(const [dr,dc] of [[0,1],[1,0]]){const y=r+dr,x=c+dc;if(!inb(y,x))continue;const u=b[y][x];if(u&&(u.star||u.color===t.color)){
+  // a same-colour (or star) pair with room to grow next turn
+  const open=[[r-dr,c-dc],[y+dr,x+dc]].some(([a,bb])=>inb(a,bb)&&!b[a][bb]);if(open)v+=mult(r,c)>1||mult(y,x)>1?2:1;}}}return v;}
+function bestOnePiece(b,rack,sets,t0,dl){let best=0;for(const s of sets){for(const o of [0,1,2,3])for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+ const t=pieceTiles(rack,s,o,r,c);if(!validPiece(b,[],t))continue;const sc=evaluate(b,t).score;if(sc>best)best=sc;}if(Date.now()-t0>dl)break;}return best;}
+function expertMove(g,ms){const t0=Date.now(),dl=ms||1300,b=g.board,rack=g.racks[g.turn],final=isFinal(g),me=g.turn;
+ const sets=[0,1,2].filter(s=>rack[3*s]);const W=final?0:1;
+ const value=(pl,used)=>{const ev=evaluate(b,pl);const starsUsed=pl.filter(t=>t.color==='star').length;
+  return {score:ev.score,board:ev.board,v:ev.score+W*(-3*pairsValue(ev.board)-(ev.score?0:starsUsed*25))};};
+ let beam=[{pl:[],used:[],...value([],[])}],all=beam.slice();
+ for(let depth=0;depth<3&&Date.now()-t0<dl*0.6;depth++){const next=[];
+  for(const node of beam){for(const s of sets){if(node.used.includes(s))continue;
+   for(const o of [0,1,2,3])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const t=pieceTiles(rack,s,o,r,c);if(!validPiece(b,node.pl,t))continue;
+    const pl=node.pl.concat(t),used=node.used.concat([s]);next.push({pl,used,...value(pl,used)});}}
+   if(Date.now()-t0>dl*0.6)break;}
+  next.sort((x,y)=>y.v-x.v);beam=next.slice(0,depth===0?50:25);all=all.concat(beam);}
+ {const h=aiMove(g,{beam:400,maxPieces:3,ms:Math.min(350,dl*0.3),saveStars:true});if(h.pl.length){const ev=evaluate(b,h.pl);all.push({pl:h.pl,used:[...new Set(h.pl.map(t=>Math.floor(t.slot/3)))],score:ev.score,board:ev.board,v:ev.score+1e6});}}
+ // rerank top candidates with exact follow-up: best score my remaining pieces could make next turn on that board
+ all.sort((x,y)=>y.v-x.v);const top=all.slice(0,30);let best=null;
+ for(const n of top){let f=0;if(!final&&Date.now()-t0<dl){const rest=sets.filter(s=>!n.used.includes(s));f=bestOnePiece(n.board,rack,rest,t0,dl);}
+  const tv=n.score+W*(0.5*f-4*pairsValue(n.board));if(!best||tv>best.tv)best={...n,tv};}
+ return best||{pl:[],score:0,used:[]};}
+function expertPlan(g){const ms=1300;let bl=null,swap=false;
+ if(false){const fits=countFits(g);
+  if(fits<24){let bb=null;for(const type of ['cross','bomb'])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const cells=blastCells(type,r,c);
+    const n=cells.filter(([y,x])=>g.board[y][x]&&!g.board[y][x].star).length-cells.filter(([y,x])=>g.board[y][x]&&g.board[y][x].star).length*3;if(!bb||n>bb.n)bb={type,r,c,n};}
+   const pre=expertMove(g,500);if(bb&&bb.n>=5&&pre.score<100){bl={type:bb.type,r:bb.r,c:bb.c,...blast(g,bb.type,bb.r,bb.c)};}}}
+ if(canPower(g)&&g.power[g.turn]>0&&countFits(g)<20){let bb=null;for(const type of ['cross','bomb'])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const cells=blastCells(type,r,c);const n=cells.filter(([y,x])=>g.board[y][x]&&!g.board[y][x].star).length-cells.filter(([y,x])=>g.board[y][x]&&g.board[y][x].star).length*2;if(!bb||n>bb.n)bb={type,r,c,n};}
+  if(bb&&bb.n>=4&&aiMove(g,{beam:60,maxPieces:3,ms:200}).score<120)bl={type:bb.type,r:bb.r,c:bb.c,...blast(g,bb.type,bb.r,bb.c)};}
+ const m=expertMove(g,bl?1000:ms);
+ if(!m.pl.length&&!m.score&&g.swaps[g.turn]>0&&countFits(g)<6&&!bl)swap=true;
+ const boost=!bl&&canPower(g)&&g.power[g.turn]>0&&m.score>0&&(m.score>=200||isFinal(g));
+ return {blast:bl,pl:m.score>0||m.pl.length?m.pl:[],boost,swap};}
 const LEVELS={easy:{beam:3,maxPieces:1,ms:200},medium:{beam:40,maxPieces:3,ms:600},hard:{beam:400,maxPieces:3,ms:450,saveStars:true,boostAt:200}};
-function aiPlan(g,level){level=level||'medium';const opt=LEVELS[level]||LEVELS.medium,rng=g.rng||Math.random;
+function aiPlan(g,level){level=level||'medium';if(level==='expert')return expertPlan(g);const opt=LEVELS[level]||LEVELS.medium,rng=g.rng||Math.random;
  if(level==='easy'){ // often a random weak move, 1 piece, rarely power-ups
   if(rng()<0.5){const rack=g.racks[g.turn],opts=[];for(let s=0;s<3;s++){if(!rack[3*s])continue;for(const o of [0,1])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const t=pieceTiles(rack,s,o,r,c);if(validPiece(g.board,[],t))opts.push(t);}}
    return {blast:null,pl:opts.length&&rng()<0.7?opts[Math.floor(rng()*opts.length)]:[],boost:false};}
@@ -107,6 +142,6 @@ function aiPlan(g,level){level=level||'medium';const opt=LEVELS[level]||LEVELS.m
  if(canPower(g)&&countFits(g)<12){let best=null;for(const type of ['cross','bomb'])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const n=blastCells(type,r,c).filter(([y,x])=>g.board[y][x]).length;if(!best||n>best.n)best={type,r,c,n};}
   if(best&&best.n>=3){bl={type:best.type,r:best.r,c:best.c,...blast(g,best.type,best.r,best.c)};}}
  const m=aiMove(g,opt);return {blast:bl,pl:m.pl,boost:m.boost};}
-const api={previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
+const api={expertMove,expertPlan,pairsValue,previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
 if(typeof module!=='undefined')module.exports=api;else root.Logic=api;
 })(this);

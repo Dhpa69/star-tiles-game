@@ -12,7 +12,7 @@ function loadProfile(){let p={};try{p=JSON.parse(localStorage.getItem(PKEY))||{}
 let profile=loadProfile();
 function saveProfile(){profile.updatedAt=new Date().toISOString();localStorage.setItem(PKEY,JSON.stringify(profile));}
 saveProfile();
-const DL={easy:'EASY',medium:'MEDIUM',hard:'HARD'};
+const DL={easy:'EASY',medium:'MEDIUM',hard:'HARD',expert:'EXPERT'};
 const NAMES=()=>[(profile.name||'PLAYER').toUpperCase(),g.mode==='ai'?'COMPUTER ('+DL[profile.difficulty]+')':'PLAYER 2'];
 const placed=()=>pieces.flatMap(p=>p.tiles);
 function cur(){const b=g.board.map(r=>r.slice());placed().forEach(p=>b[p.r][p.c]=p.color==='star'?{star:true,fresh:true,mult:L.mult(p.r,p.c)}:{color:p.color,fresh:true});return b;}
@@ -103,7 +103,7 @@ function pop(res){pops=res.pops||[];setTimeout(()=>{pops=[];render();},450);}
 function markOwner(p){g.board.forEach(r=>r.forEach(t=>{if(t&&t.star&&t.owner===undefined)t.owner=p;}));}
 function next(){sel=g.over?null:firstFree();render();if(g.over)return finish();
  if(g.mode==='pvp'){say(NAMES()[g.turn]+"'s turn");return;}
- if(g.turn===1){busy=true;render();setTimeout(()=>{const m=L.aiPlan(g,profile.difficulty);if(m.blast){boom(m.blast);say('Computer used '+(m.blast.type==='bomb'?'💣 Bomb':'✚ Cross Blast'));}pieces=[];for(let i=0;i<m.pl.length;i+=3)pieces.push({s:Math.floor(m.pl[i].slot/3),tiles:m.pl.slice(i,i+3)});render();
+ if(g.turn===1){busy=true;render();setTimeout(()=>{const m=L.aiPlan(g,profile.difficulty);if(m.swap&&L.swap(g)){busy=false;say('Computer swapped');next();return;}if(m.blast){boom(m.blast);say('Computer used '+(m.blast.type==='bomb'?'💣 Bomb':'✚ Cross Blast'));}pieces=[];for(let i=0;i<m.pl.length;i+=3)pieces.push({s:Math.floor(m.pl[i].slot/3),tiles:m.pl.slice(i,i+3)});render();
   setTimeout(()=>{const res=L.commit(g,placed(),m.boost);if(m.boost)say('Computer ⚡ x2');pop(res);markOwner(1);pieces=[];busy=false;say(res.score?'Computer +'+res.score:'Computer passes');next();},800);},500);}}
 function finish(){const n=NAMES(),w=g.winner;
  $('msg').innerHTML=(w<0?'Tie game!':n[w]+' wins the pot!')+'<br>'+g.scores[0]+' – '+g.scores[1]+'<br>'+(g.mode==='ai'&&w===0?'+10 coins! ':'')+'Coins: '+g.coins[0];profile.coins=g.coins[0];profile.games++;if(w===0)profile.wins++;saveProfile();showProfile();$('overlay').classList.add('show');}

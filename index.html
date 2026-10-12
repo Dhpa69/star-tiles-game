@@ -1,7 +1,7 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>Star Tiles</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="theme-color" content="#1b3f8f">
-<link rel="stylesheet" href="style.css?v=12"></head><body>
+<link rel="stylesheet" href="style.css?v=13"></head><body>
 <div id="app">
 <header><button class="btn sq" id="menuBtn">👥</button>
 <div id="hud"><div class="names"><span id="n0" class="p0">DHAVAL P</span><span class="vs">·VS·</span><span id="n1">COMPUTER</span></div>
@@ -23,9 +23,9 @@
 <div id="overlay" class="show"><div class="card"><h1>⭐ Star Tiles</h1><p id="msg">It takes 3 to score: connect 3+ same-color tiles to score and clear them. Stars from your rack are wild and permanent. Drag your 3-tile pieces onto the board (tap again or ↻ to rotate). Place 0–3 pieces anywhere they fit on empty squares, then PLAY. ⚡ Power-ups (2 per game, 1 per move): Double Points, Bomb (3×3) or Cross Blast (row + column). Blasts clear everything in the area, even stars, but score nothing. Coins: start with 100, win = +10. Each game has 1 free swap and 2 free power-ups; extra swaps or power-ups cost 50 coins. 10 moves each — biggest score takes the pot!</p>
 <label class="pname">Your name <input id="pname" maxlength="14" placeholder="Enter your name" autocomplete="off"></label>
 <div class="pstat" id="pstat"></div>
-<div class="diff" id="diff"><button data-d="easy">EASY</button><button data-d="medium">MEDIUM</button><button data-d="hard">HARD</button></div>
-<button class="btn big" id="vsAI">Play vs COMPUTER</button><button class="btn big" id="vsP">Pass &amp; Play (2 players)</button><div id="ver">v12</div></div></div>
-</div><script src="logic.js?v=12"></script><script src="app.js?v=12"></script>
+<div class="diff" id="diff"><button data-d="easy">EASY</button><button data-d="medium">MEDIUM</button><button data-d="hard">HARD</button><button data-d="expert">EXPERT</button></div>
+<button class="btn big" id="vsAI">Play vs COMPUTER</button><button class="btn big" id="vsP">Pass &amp; Play (2 players)</button><div id="ver">v13</div></div></div>
+</div><script src="logic.js?v=13"></script><script src="app.js?v=13"></script>
 <script>
 if('serviceWorker'in navigator){let reloaded=false;const had=!!navigator.serviceWorker.controller;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloaded||!had)return;reloaded=true;location.reload();});

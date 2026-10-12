@@ -78,6 +78,9 @@ a.equal(n,20);a.deepEqual(g.moves,[10,10]);
 // live preview == committed score (with and without double)
 for(let i=0;i<30;i++){let sd=i+11;const r=()=>(sd=(sd*16807)%2147483647)/2147483647;const G=L.newGame('ai',r);for(let k=0;k<6;k++){const m=L.aiMove(G);const bo=k%3===0;
  const pv=L.previewMove(G,m.pl,bo),before=G.scores[G.turn],res=L.commit(G,m.pl,bo);a.equal(pv.score,res.score);a.equal(G.scores[1-G.turn]-before,pv.score);}}
+// expert: valid whole-piece moves, time-budgeted
+{let sd=5;const r=()=>(sd=(sd*16807)%2147483647)/2147483647;const G=L.newGame('ai',r);for(let k=0;k<4;k++){const t=Date.now(),m=L.aiPlan(G,'expert');a.ok(Date.now()-t<2000);a.ok(m.pl.length%3===0);
+ for(let i=0;i<m.pl.length;i+=3)a.ok(L.validPiece(G.board,m.pl.slice(0,i),m.pl.slice(i,i+3)));if(m.swap)L.swap(G);else L.commit(G,m.pl,m.boost);}}
 // economy
 {const E=L.newGame('pvp',rng);a.deepEqual(E.coins,[100,100]);a.equal(L.newGame('ai',rng).coins[0],100);
  a.ok(L.swap(E));a.equal(E.coins[0],100);L.commit(E,[]); // p0 free swap
