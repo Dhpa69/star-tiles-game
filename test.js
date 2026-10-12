@@ -105,6 +105,8 @@ for(let i=0;i<30;i++){let sd=i+11;const r=()=>(sd=(sd*16807)%2147483647)/2147483
 {const P=L.newGame('pvp',rng);P.pot=4321;P.board=empty();P.board[1][3]={color:'red'};P.board[1][4]={color:'red'};L.commit(P,[{r:1,c:5,color:'red'}]);a.equal(P.scores[0],60);
  L.commit(P,[]);a.equal(P.scores[1],0);while(!P.over)L.commit(P,[]);a.deepEqual(P.scores,[60,0]);a.equal(P.winner,0);a.equal(P.pot,undefined);
  const T=L.newGame('pvp',rng);while(!T.over)L.commit(T,[]);a.deepEqual(T.scores,[0,0]);a.equal(T.winner,-1);}
+// v23 resign: other player wins + win coins; old logs without resign unaffected
+{const Q=L.newGame('pvp',rng);Q.scores=[500,0];a.ok(L.resign(Q,0));a.ok(Q.over);a.equal(Q.winner,1);a.equal(Q.coins[1],110);a.equal(L.resign(Q,1),false);}
 // economy
 {const E=L.newGame('pvp',rng);a.deepEqual(E.coins,[100,100]);a.equal(L.newGame('ai',rng).coins[0],100);
  {const t0=E.turn,mv=E.moves.slice(),keep=E.racks[0].slice(3);a.ok(L.swap(E,0));a.equal(E.turn,t0);a.deepEqual(E.moves,mv);a.deepEqual(E.racks[0].slice(3),keep); // swap keeps turn/moves, only slot 0 changes

@@ -124,13 +124,14 @@ function next(){sel=g.over?null:firstFree();render();if(g.over)return finish();a
  if(g.turn===1){busy=true;render();setTimeout(()=>{const m=L.aiPlan(g,profile.difficulty);if(m.swap&&L.swap(g,0)){busy=false;say('Computer swapped a piece');next();return;}if(m.blast){boom(m.blast);say('Computer used '+(m.blast.type==='bomb'?'💣 Bomb':'✚ Cross Blast'));}pieces=[];for(let i=0;i<m.pl.length;i+=3)pieces.push({s:Math.floor(m.pl[i].slot/3),tiles:m.pl.slice(i,i+3)});render();
   setTimeout(()=>{const res=L.commit(g,placed(),m.boost);if(m.boost){const b=L.norm(m.boost);say('Computer ⚡ x'+Math.pow(2,b.d)*Math.pow(3,b.t));}pop(res);markOwner(1);pieces=[];busy=false;say(res.score?'Computer +'+res.score:'Computer passes');next();},800);},500);}}
 function finish(){clearSave();const n=NAMES(),w=g.winner,me=meIdx();
- $('result').innerHTML=(w<0?'Tie game!':n[w]+' wins!')+'<br>'+g.scores[0]+' – '+g.scores[1]+'<br>'+(g.mode!=='pvp'&&w===me?'+10 coins! ':'')+'Coins: '+g.coins[me];profile.coins=g.coins[me];profile.games++;if(w===me)profile.wins++;if(isOn()){const S=Online.st,o=Online.saved(S.code);if(o&&o.counted){profile.games--;if(w===me)profile.wins--;}else profile.coins=Math.max(0,profile.coins+g.coins[me]-(g.coinsStart||g.coins)[me]);$('result').innerHTML=$('result').innerHTML.replace(/Coins: \d+/,'Coins: '+profile.coins);Online.persist({over:true,counted:true,winner:w,scores:g.scores.slice()});Online.leave();renderGames();}saveProfile();showProfile();$('overlay').classList.add('show');}
+ $('result').innerHTML=(g.resigned!=null?n[g.resigned]+' resigned. ':'')+(w<0?'Tie game!':n[w]+' wins!')+'<br>'+g.scores[0]+' – '+g.scores[1]+'<br>'+(g.mode!=='pvp'&&w===me?'+10 coins! ':'')+'Coins: '+g.coins[me];if(!isOn())profile.coins=g.coins[me];profile.games++;if(w===me)profile.wins++;if(isOn()){const S=Online.st,o=Online.saved(S.code);if(o&&o.counted){profile.games--;if(w===me)profile.wins--;}else profile.coins=Math.max(0,profile.coins+g.coins[me]-(g.coinsStart||g.coins)[me]);$('result').innerHTML=$('result').innerHTML.replace(/Coins: \d+/,'Coins: '+profile.coins);Online.persist({over:true,counted:true,winner:w,scores:g.scores.slice()});Online.leave();renderGames();}saveProfile();showProfile();$('overlay').classList.add('show');}
 function start(mode){$('result').innerHTML='';const nm=$('pname').value.trim();if(!nm){$('pname').focus();say('Enter your name first');return;}profile.name=nm;saveProfile();clearSave();g=L.newGame(mode);g.coins[0]=profile.coins;pieces=[];boost=false;busy=false;sel=firstFree();g._live=true;$('overlay').classList.remove('show');render();autosave();}
 // ---- online rooms ----
-function applySilent(a){if(a.type==='commit'){const p=g.turn;L.commit(g,a.pl,a.boost);markOwner(p);}else if(a.type==='swap')L.swap(g,a.s);else if(a.type==='blast')L.blast(g,a.b,a.r,a.c);}
+function applySilent(a){if(a.type==='commit'){const p=g.turn;L.commit(g,a.pl,a.boost);markOwner(p);}else if(a.type==='swap')L.swap(g,a.s);else if(a.type==='blast')L.blast(g,a.b,a.r,a.c);else if(a.type==='resign')L.resign(g,a.p);}
 function remoteAct(a){const p=g.turn;
  if(a.type==='commit'){const res=L.commit(g,a.pl,a.boost);pop(res);markOwner(p);say(NAMES()[p]+(res.score?' +'+res.score:' passes'));}
  else if(a.type==='swap'){L.swap(g,a.s);say(NAMES()[p]+' swapped');}
+ else if(a.type==='resign'){L.resign(g,a.p);say(NAMES()[a.p]+' resigned – you win!');}
  else if(a.type==='blast'){const res=L.blast(g,a.b,a.r,a.c);if(res){boom(res);say(NAMES()[p]+' used '+(a.b==='bomb'?'💣 Bomb':'✚ Cross Blast'));}render();return;}
  next();}
 const pending=[];
@@ -167,7 +168,7 @@ function autosave(){if(!g||!g.started&&g.mode!=='online'&&!g._live)return;if(g.m
  try{const {rng,...rest}=g;localStorage.setItem(SKEY,JSON.stringify({v:1,savedAt:Date.now(),g:rest,pieces,difficulty:profile.difficulty}));}catch(e){}}
 function clearSave(){localStorage.removeItem(SKEY);showResume();}
 function loadSave(){try{return JSON.parse(localStorage.getItem(SKEY));}catch(e){return null;}}
-function showResume(){const ob=$('onlResume');if(ob)ob.style.display='none';renderGames();const s=loadSave(),b=$('resumeBtn');if(!b)return;b.style.display=s&&s.g&&!s.g.over?'block':'none';
+function showResume(){const ob=$('onlResume');if(ob)ob.style.display='none';const qb=$('quitBtn');if(qb)qb.style.display=g&&!g.over&&(g._live||(isOn()&&g.started))?'block':'none';renderGames();const s=loadSave(),b=$('resumeBtn');if(!b)return;b.style.display=s&&s.g&&!s.g.over?'block':'none';
  if(s&&s.g)b.textContent=(g&&g._live&&!g.over?'▶ Continue game (':'▶ Resume game (')+(s.g.mode==='ai'?'vs COMPUTER':'Pass & Play')+', move '+Math.min(10,s.g.moves[0]+1)+'/10)';}
 $('onlResume').onclick=()=>openGame((Online.saved()||{}).code);
 function openGame(code){const s=Online.saved(code);if(!s)return;if(s.rematch&&s.over){joinRoom(s.rematch);return;}
@@ -193,7 +194,7 @@ g=L.newGame('ai');g.coins[0]=profile.coins;render();showProfile();showResume();$
 // ---- v22: My online games (many rooms at once, Words-With-Friends style) ----
 var gcache;
 function replayGame(o){gcache=gcache||{};if(o.seed==null)return null;const k=o.code+':'+o.seed+':'+(o.log||[]).length;if(gcache[o.code]&&gcache[o.code].k===k)return gcache[o.code].G;
- const G=L.newGame('pvp',Online.mulberry(o.seed));G.coins=(o.coins||[100,100]).slice();for(const a of o.log||[]){try{if(a.type==='commit')L.commit(G,a.pl,a.boost);else if(a.type==='swap')L.swap(G,a.s);else if(a.type==='blast')L.blast(G,a.b,a.r,a.c);}catch(e){}}
+ const G=L.newGame('pvp',Online.mulberry(o.seed));G.coins=(o.coins||[100,100]).slice();for(const a of o.log||[]){try{if(a.type==='commit')L.commit(G,a.pl,a.boost);else if(a.type==='swap')L.swap(G,a.s);else if(a.type==='blast')L.blast(G,a.b,a.r,a.c);else if(a.type==='resign')L.resign(G,a.p);}catch(e){}}
  gcache[o.code]={k,G};return G;}
 function ago(t){if(!t)return '';const s=(Date.now()-t)/1000;return s<60?'just now':s<3600?Math.floor(s/60)+'m ago':s<86400?Math.floor(s/3600)+'h ago':Math.floor(s/86400)+'d ago';}
 function gameRows(){const m=Online.all(),rows=[];for(const code in m){const o=m[code],G=replayGame(o),me=o.me|0;
@@ -205,10 +206,11 @@ function renderGames(){const el=$('mygames');if(!el)return;const rows=gameRows()
  if(!rows.length){el.innerHTML='';el.style.display='none';return;}el.style.display='block';
  el.innerHTML='<div class="mgh">🌐 My online games'+(yours?' <b class="mgn">'+yours+'</b>':'')+'</div>'+rows.map(r=>{const cls=['yt','tt','wt','ov'][r.rank];
   return '<div class="mg '+cls+'" data-code="'+r.o.code+'"><div class="mgm"><b>vs '+esc(r.opp)+'</b><span class="mgb">'+r.st+'</span><br><small>Room '+r.o.code+(r.score?' · '+r.score:'')+' · '+ago(r.o.lastAct)+'</small></div>'+
-  (r.rank===3?(r.o.rematch?'<button class="mga" data-a="join">Join rematch</button>':'<button class="mga" data-a="rematch">Rematch</button>')+'<button class="mga x" data-a="rm">✕</button>':'')+'</div>';}).join('');}
+  (r.rank===3?(r.o.rematch?'<button class="mga" data-a="join">Join rematch</button>':'<button class="mga" data-a="rematch">Rematch</button>')+'<button class="mga x" data-a="rm">✕</button>':'<button class="mga x" data-a="rm">✕</button>')+'</div>';}).join('');}
 function esc(t){return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 document.addEventListener('click',e=>{const row=e.target.closest&&e.target.closest('.mg');if(!row)return;const code=row.dataset.code,a=e.target.dataset&&e.target.dataset.a,o=Online.saved(code);if(!o)return;
- if(a==='rm'){Online.clear(code);renderGames();return;}
+ if(a==='rm'){const G=replayGame(o);if(G&&!G.over&&!o.over){if(!confirm('Resign this game vs '+(o.names?o.names[1-o.me]:'friend')+'? It counts as a loss and they win.'))return;resignStored(o);}else if(!G&&!confirm('Remove this waiting room?'))return;
+  if(isOn()&&Online.st.code===code){Online.leave();g=L.newGame('ai');g.coins[0]=profile.coins;render();}Online.clear(code);renderGames();return;}
  if(a==='rematch'){const nm=profile.name||$('pname').value.trim();if(!nm){say('Enter your name first');return;}const nc=Online.host(nm,profile.coins,{msg:onMsg,status:onlStatus});Online.sendTo(code,o.id,{t:'rematch',code:nc});
   $('overlay').classList.remove('show');$('onl').classList.add('show');$('onlcode').textContent=nc;onlStatus('Rematch room – waiting for '+(o.names?o.names[1-o.me]:'friend')+'…');return;}
  if(a==='join'){joinRoom(o.rematch);return;}
@@ -221,3 +223,14 @@ function onPolled(o){const me=o.me|0;
  if(o.rematch&&o.over&&!o.rmNote){Online.upd(o.code,x=>x.rmNote=1);say('🔁 '+(o.names?o.names[1-me]:'Friend')+' wants a rematch');}
  renderGames();}
 Online.pollAll(onPolled);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')Online.pollAll(onPolled);});addEventListener('focus',()=>Online.pollAll(onPolled));
+
+// ---- v23: quit / resign ----
+function resignStored(o){const me=o.me|0,n=(o.log||[]).length,act={type:'resign',p:me};Online.sendTo(o.code,o.id,{t:'act',n,a:act});
+ const G=replayGame(o);if(G){const c0=(o.coins||[100,100])[me];L.resign(G,me);profile.coins=Math.max(0,profile.coins+G.coins[me]-c0);}profile.games++;saveProfile();showProfile();say('You resigned');}
+function quitGame(){if(!g||g.over||!(g._live||isOn()))return;
+ if(isOn()){const S=Online.st,o=Online.saved(S.code);if(!confirm('Resign this online game? It counts as a loss and '+NAMES()[1-meIdx()]+' wins.'))return;
+  const me=meIdx();Online.act({type:'resign',p:me});L.resign(g,me);profile.coins=Math.max(0,profile.coins+g.coins[me]-(g.coinsStart||g.coins)[me]);profile.games++;saveProfile();
+  Online.leave();Online.clear(S.code);}
+ else{if(!confirm('Quit this game? Progress is lost and no coins are awarded.'))return;g.over=true;clearSave();}
+ g=L.newGame('ai');g.coins[0]=profile.coins;pieces=[];boost=false;busy=false;$('result').innerHTML='Game quit.';render();showProfile();showResume();$('overlay').classList.add('show');}
+$('quitBtn').onclick=quitGame;
