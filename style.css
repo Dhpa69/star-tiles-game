@@ -134,3 +134,11 @@ html,body,button,.set,.rot,#rack{touch-action:manipulation}
 #result{font-weight:900;color:#1b3f8f;margin:4px 0}#result:empty{display:none}
 /* v19 online status */
 #ostat{display:none;text-align:center;font-size:12px;font-weight:800;color:#1b3f8f;background:#dbe9ff;padding:2px}#ostat.show{display:block}#ostat.away{background:#ffe3c2;color:#a14a00}
+/* v20 anti-jump: no page scroll/bounce, fixed-size preview/status, drag surfaces never scroll */
+html,body{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;overscroll-behavior:none;-webkit-overflow-scrolling:auto}
+#rack,#board,#rack *,#board *{touch-action:none!important;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#potprev,#potprev:empty{display:block;visibility:visible;min-height:17px;line-height:17px;min-width:44px;text-align:center;white-space:nowrap}
+#potprev:empty{visibility:hidden}
+#ostat{min-height:16px;overflow:hidden;white-space:nowrap}
+#toast{will-change:opacity;contain:layout}
+#pot{min-width:118px;box-sizing:border-box}#potprev{max-width:118px;overflow:hidden;text-overflow:ellipsis}

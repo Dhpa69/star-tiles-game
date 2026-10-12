@@ -1,7 +1,7 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>Star Tiles</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="theme-color" content="#1b3f8f">
-<link rel="stylesheet" href="style.css?v=19"></head><body>
+<link rel="stylesheet" href="style.css?v=20"></head><body>
 <div id="app">
 <header><button class="btn sq" id="menuBtn" aria-label="Menu">🏠</button>
 <div id="hud"><div class="names"><span id="n0" class="p0">DHAVAL P</span><span class="vs">·VS·</span><span id="n1">COMPUTER</span></div>
@@ -15,7 +15,7 @@
 <div id="coins">YOUR COINS:<br><b>🪙 <span id="coinN">100</span></b></div>
 <button class="btn" id="swap">⇄<br>SWAP<span id="swapc" class="cost">FREE</span></button><button class="btn" id="play">▶<br>PLAY</button></footer>
 <div id="pmenu"><div class="pcard"><div class="ptitle">⚡ POWER-UPS <span id="pleft"></span></div>
-<button class="btn big" data-p="double">✖2 DOUBLE POINTS<small>Doubles this move's score</small></button>
+<button class="btn big" data-p="double">✖2 DOUBLE POINTS<small>Tap again to stack: x2, x4, x8…</small></button><button class="pbtn" data-p="triple">✖3 TRIPLE POINTS<small>Stacks too: 2 Doubles + 1 Triple = x12</small></button><button class="pbtn" data-p="unboost" id="unboost">↩ CANCEL BOOSTS<small>Refunds this move's Double/Triple charges</small></button>
 <button class="btn big" data-p="bomb">💣 BOMB<small>Clears a 3×3 area</small></button>
 <button class="btn big" data-p="cross">✚ CROSS BLAST<small>Clears a whole row + column</small></button>
 <button class="btn big cancel" data-p="cancel">Cancel</button></div></div>
@@ -27,8 +27,8 @@
 <div class="diff" id="diff"><button data-d="easy">EASY</button><button data-d="medium">MEDIUM</button><button data-d="hard">HARD</button><button data-d="expert">EXPERT</button></div>
 <button class="btn big" id="vsAI">Play vs COMPUTER</button><button class="btn big" id="vsP">Pass &amp; Play (2 players)</button>
 <div class="online"><button class="btn big" id="hostBtn">🌐 Host online game</button>
-<div class="joinrow"><input id="joinCode" maxlength="6" placeholder="ROOM CODE" autocapitalize="characters" autocomplete="off"><button class="btn" id="joinBtn">Join</button></div></div><div id="ver">v19</div></div></div>
-</div><script src="logic.js?v=19"></script><script src="online.js?v=19"></script><script src="app.js?v=19"></script>
+<div class="joinrow"><input id="joinCode" maxlength="6" placeholder="ROOM CODE" autocapitalize="characters" autocomplete="off"><button class="btn" id="joinBtn">Join</button></div></div><div id="ver">v20</div></div></div>
+</div><script src="logic.js?v=20"></script><script src="online.js?v=20"></script><script src="app.js?v=20"></script>
 <script>
 if('serviceWorker'in navigator){let reloaded=false;const had=!!navigator.serviceWorker.controller;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloaded||!had)return;reloaded=true;try{window.autosave&&autosave();}catch(e){}location.reload();});

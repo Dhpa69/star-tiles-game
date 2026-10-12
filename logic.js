@@ -46,23 +46,33 @@ function group(b,r,c){const col=b[r][c].color,seen=new Set(),st=[[r,c]],out=[];
 function evaluate(b,pl,boost){const nb=b.map(row=>row.map(t=>t&&{...t}));let score=0;const seeds=[];
  for(const p of pl){nb[p.r][p.c]=p.color==='star'?{star:true,fresh:true,mult:mult(p.r,p.c)}:{color:p.color};}
  for(const p of pl){if(p.color!=='star'){seeds.push(p);continue;}for(const [y,x] of [[p.r+1,p.c],[p.r-1,p.c],[p.r,p.c+1],[p.r,p.c-1]])if(inb(y,x)&&nb[y][x]&&!nb[y][x].star)seeds.push({r:y,c:x});}
- let cleared=0;const done=new Set(),pops=[];
+ let cleared=0,groups=0;const done=new Set(),pops=[];
  for(const p of seeds){if(nb[p.r][p.c].star||done.has(p.r*N+p.c))continue;const g=group(nb,p.r,p.c);g.forEach(([y,x])=>{if(!nb[y][x].star)done.add(y*N+x)});
-  if(g.length>=3){const ns=g.filter(([y,x])=>nb[y][x].star).length,cnt=g.length-ns+Math.min(ns,2);let m=1;g.forEach(([y,x])=>{m=Math.max(m,mult(y,x));});let s=20*cnt*m;if(cnt>=5)s*=2; // at most 2 stars count toward points
-   score+=s;
+  if(g.length>=3){const ns=g.filter(([y,x])=>nb[y][x].star).length,cnt=g.length-ns+Math.min(ns,2);let m=1;g.forEach(([y,x])=>{m*=mult(y,x);});let s=20*cnt*m;if(cnt>=5)s*=2; // every multiplier square in the group multiplies; 5+ tiles x2; at most 2 stars count toward points
+   score+=s;groups++;
    g.forEach(([y,x])=>{if(!nb[y][x].star){cleared++;pops.push({r:y,c:x,color:nb[y][x].color});}});}}
  for(const p of pops)nb[p.r][p.c]=null; // scored colored tiles are cleared; stars stay
- nb.forEach(r=>r.forEach(t=>t&&delete t.fresh));if(boost)score*=2;return {score,board:nb,cleared,pops};}
+ nb.forEach(r=>r.forEach(t=>t&&delete t.fresh));if(groups>1)score*=groups; // combo: N groups in one move multiply the total by N
+ const B=norm(boost);score*=Math.pow(2,B.d)*Math.pow(3,B.t); // stacked Doubles x2^d and Triples x3^t
+ return {score,board:nb,cleared,pops,groups,doubles:B.d,triples:B.t,factor:Math.pow(2,B.d)*Math.pow(3,B.t)};}
+// boost formats: true / number (old saves & online: count of Doubles) or {d,t}
+function norm(b){if(!b)return {d:0,t:0};if(b===true)return {d:1,t:0};if(typeof b==='number')return {d:b|0,t:0};return {d:b.d|0,t:b.t|0};}
+function capB(g,b){const B=norm(b),ch=charges(g),d=Math.min(B.d,ch),t=Math.min(B.t,ch-d);return {d,t};}
+function dbl(b){return norm(b).d;}
 // exact preview of what PLAY would score now (same evaluate() as commit)
-function previewMove(g,pl,boost){return evaluate(g.board,pl,!!boost&&canPower(g));}
+function previewMove(g,pl,boost){return evaluate(g.board,pl,capB(g,boost));}
 function commit(g,pl,boost){const p=g.turn;
- if(boost){if(!canPower(g))boost=false;else usePower(g);}
+ {const B=capB(g,boost);for(let i=0;i<B.d+B.t;i++)spendCharge(g);boost=B;}
  const res=evaluate(g.board,pl,boost);g.board=res.board;g.scores[p]+=res.score;g.pot+=Math.round(res.score/2)+100;
  const rack=g.racks[p];pl.forEach(x=>{let i=(x.slot!=null&&rack[x.slot]===x.color)?x.slot:rack.indexOf(x.color);if(i>=0)rack[i]=null;});
  endTurn(g);return res;}
 function refill(g){const r=g.racks[g.turn];for(let s=0;s<3;s++)if(!r[3*s]){piece(g.rng).forEach((t,j)=>r[3*s+j]=t);g.orient[g.turn][s]=0;}}
 function canSwap(g){return g.swaps[g.turn]>0||g.coins[g.turn]>=EXTRA_COST;}
-function swap(g){if(!canSwap(g))return false;if(g.swaps[g.turn]>0)g.swaps[g.turn]--;else g.coins[g.turn]-=EXTRA_COST;g.racks[g.turn]=deal(g.rng);g.orient[g.turn]=[0,0,0];endTurn(g);return true;}
+// v20: swap replaces ONLY piece slot s; the turn and moves left are unchanged (placed pieces elsewhere stay).
+// s undefined = legacy v19 swap (all 9, ends turn) so old online logs replay identically.
+function swap(g,s){if(!canSwap(g))return false;if(g.swaps[g.turn]>0)g.swaps[g.turn]--;else g.coins[g.turn]-=EXTRA_COST;
+ if(s===undefined||s===null){g.racks[g.turn]=deal(g.rng);g.orient[g.turn]=[0,0,0];endTurn(g);return true;}
+ const p=piece(g.rng);for(let i=0;i<3;i++)g.racks[g.turn][s*3+i]=p[i];g.orient[g.turn][s]=0;return true;}
 function endTurn(g){g.moves[g.turn]++;g.usedPower=false;
  if(g.moves[0]>=MOVES&&g.moves[1]>=MOVES){g.over=true;const w=g.scores[0]===g.scores[1]?-1:(g.scores[0]>g.scores[1]?0:1);g.winner=w;
   if(w>=0)g.scores[w]+=g.pot;if(w>=0)g.coins[w]+=WIN_COINS;return;}
@@ -81,9 +91,12 @@ function aiMove(g,opt){opt=opt||{};const beam=opt.beam||40,maxP=opt.maxPieces||3
    if(!nx||ns<=sc)break;pl=pl.concat(nx.t);used.push(nx.s);}
   consider(pl);}
  if(best.score<=0)return {pl:[],boost:false,score:0};
- const boost=canPower(g)&&(best.score>=(opt.boostAt||120)||isFinal(g));return {pl:best.pl,boost,score:best.score};}
+ const boost=aiBoost(g,best.score,opt.boostAt||120);return {pl:best.pl,boost,score:best.score};}
 // ---- power-ups: 2 uses per player per game, shared across DOUBLE / BOMB / CROSS, max 1 per move ----
-function canPower(g){return !g.usedPower&&(g.power[g.turn]>0||g.coins[g.turn]>=EXTRA_COST);}
+function canPower(g){return !g.usedPower&&(g.power[g.turn]>0||g.coins[g.turn]>=EXTRA_COST);} // blasts: max 1 per move
+// Doubles stack with no cap: each costs one charge (free first, then 50 coins)
+function charges(g){return g.power[g.turn]+Math.floor(Math.max(0,g.coins[g.turn])/EXTRA_COST);}
+function spendCharge(g){if(g.power[g.turn]>0)g.power[g.turn]--;else g.coins[g.turn]-=EXTRA_COST;}
 function powerCost(g){return g.power[g.turn]>0?0:EXTRA_COST;}
 function usePower(g){if(g.power[g.turn]>0)g.power[g.turn]--;else g.coins[g.turn]-=EXTRA_COST;g.usedPower=true;}
 function blastCells(type,r,c){const out=[];
@@ -129,14 +142,18 @@ function expertPlan(g){const ms=1300;let bl=null,swap=false;
   if(bb&&bb.n>=4&&aiMove(g,{beam:60,maxPieces:3,ms:200}).score<120)bl={type:bb.type,r:bb.r,c:bb.c,...blast(g,bb.type,bb.r,bb.c)};}
  const m=expertMove(g,bl?1000:ms);
  if(!m.pl.length&&!m.score&&g.swaps[g.turn]>0&&countFits(g)<6&&!bl)swap=true;
- const boost=!bl&&canPower(g)&&g.power[g.turn]>0&&m.score>0&&(m.score>=200||isFinal(g));
+ const boost=aiBoost(g,m.score,200);
  return {blast:bl,pl:m.score>0||m.pl.length?m.pl:[],boost,swap};}
+// AI stacking: Triple beats Double for the same charge, so the AI stacks Triples using FREE charges only
+// (keeps coins). Big move -> 1 Triple; huge move or last move -> all free charges.
+function aiBoost(g,score,at){const free=g.power[g.turn];if(score<=0||free<=0)return false;
+ if(isFinal(g)||score>=at*4)return {d:0,t:free};if(score>=at)return {d:0,t:1};return false;}
 const LEVELS={easy:{beam:3,maxPieces:1,ms:200},medium:{beam:40,maxPieces:3,ms:600},hard:{beam:400,maxPieces:3,ms:450,saveStars:true,boostAt:200}};
 function aiPlan(g,level){level=level||'medium';if(level==='expert')return expertPlan(g);const opt=LEVELS[level]||LEVELS.medium,rng=g.rng||Math.random;
  if(level==='easy'){ // often a random weak move, 1 piece, rarely power-ups
   if(rng()<0.5){const rack=g.racks[g.turn],opts=[];for(let s=0;s<3;s++){if(!rack[3*s])continue;for(const o of [0,1])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const t=pieceTiles(rack,s,o,r,c);if(validPiece(g.board,[],t))opts.push(t);}}
    return {blast:null,pl:opts.length&&rng()<0.7?opts[Math.floor(rng()*opts.length)]:[],boost:false};}
-  const m=aiMove(g,opt);return {blast:null,pl:m.pl,boost:m.boost&&rng()<0.15};}
+  const m=aiMove(g,opt);return {blast:null,pl:m.pl,boost:rng()<0.15?m.boost:false};}
  if(level==='hard'&&canPower(g)){ // compare: blast-then-move vs move (with double)
   const plain=aiMove(g,opt);let bestB=null;
   if(countFits(g)<20){for(const type of ['cross','bomb'])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const n=blastCells(type,r,c).filter(([y,x])=>g.board[y][x]&&!g.board[y][x].star).length-blastCells(type,r,c).filter(([y,x])=>g.board[y][x]&&g.board[y][x].star).length*2;if(!bestB||n>bestB.n)bestB={type,r,c,n};}}
@@ -146,6 +163,6 @@ function aiPlan(g,level){level=level||'medium';if(level==='expert')return expert
  if(canPower(g)&&countFits(g)<12){let best=null;for(const type of ['cross','bomb'])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const n=blastCells(type,r,c).filter(([y,x])=>g.board[y][x]).length;if(!best||n>best.n)best={type,r,c,n};}
   if(best&&best.n>=3){bl={type:best.type,r:best.r,c:best.c,...blast(g,best.type,best.r,best.c)};}}
  const m=aiMove(g,opt);return {blast:bl,pl:m.pl,boost:m.boost};}
-const api={expertMove,expertPlan,pairsValue,previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
+const api={norm,capB,charges,spendCharge,dbl,expertMove,expertPlan,pairsValue,previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
 if(typeof module!=='undefined')module.exports=api;else root.Logic=api;
 })(this);

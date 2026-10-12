@@ -74,7 +74,7 @@ a.equal(o,0);a.equal(L.rotateO(3),0);a.deepEqual(L.pieceTiles(RG,0,2,0,0).map(q=
  const Q=L.newGame('ai',rng);a.equal(Q.power[0],2);a.ok(L.canPower(Q)); // cancel = never calling blast -> nothing consumed
  const D=L.newGame('ai',rng);D.board=empty();D.board[1][3]={color:'red'};D.board[1][4]={color:'red'};
  const r1=L.commit(D,[{r:1,c:5,color:'red'}],true);a.equal(r1.score,120);a.equal(D.power[0],1);
- L.commit(D,[]);L.blast(D,'bomb',5,5);D.board[1][3]={color:'red'};D.board[1][4]={color:'red'};const r2=L.commit(D,[{r:1,c:5,color:'red'}],true);a.equal(r2.score,60); // double refused after blast same move
+ L.commit(D,[]);L.blast(D,'bomb',5,5);D.board[1][3]={color:'red'};D.board[1][4]={color:'red'};const r2=L.commit(D,[{r:1,c:5,color:'red'}],true);a.equal(r2.score,120); // doubles now combine with a blast (stacking)
  a.equal(D.power[0],0);}
 let n=0;const t0=Date.now();while(!g.over){const m=L.aiPlan(g);a.ok(m.pl.length%3===0);L.commit(g,m.pl,m.boost);n++;}
 a.equal(n,20);a.deepEqual(g.moves,[10,10]);
@@ -83,11 +83,30 @@ for(let i=0;i<30;i++){let sd=i+11;const r=()=>(sd=(sd*16807)%2147483647)/2147483
  const pv=L.previewMove(G,m.pl,bo),before=G.scores[G.turn],res=L.commit(G,m.pl,bo);a.equal(pv.score,res.score);a.equal(G.scores[1-G.turn]-before,pv.score);}}
 // expert: valid whole-piece moves, time-budgeted
 {let sd=5;const r=()=>(sd=(sd*16807)%2147483647)/2147483647;const G=L.newGame('ai',r);for(let k=0;k<4;k++){const t=Date.now(),m=L.aiPlan(G,'expert');a.ok(Date.now()-t<2000);a.ok(m.pl.length%3===0);
- for(let i=0;i<m.pl.length;i+=3)a.ok(L.validPiece(G.board,m.pl.slice(0,i),m.pl.slice(i,i+3)));if(m.swap)L.swap(G);else L.commit(G,m.pl,m.boost);}}
+ for(let i=0;i<m.pl.length;i+=3)a.ok(L.validPiece(G.board,m.pl.slice(0,i),m.pl.slice(i,i+3)));if(m.swap)L.swap(G,0);else L.commit(G,m.pl,m.boost);}}
+// stacking: multiplier squares multiply, combos multiply, Doubles x2^n, Triples x3^n (all multiplicative)
+{const E=()=>Array.from({length:8},()=>Array(8).fill(null));
+ const b=E();b[2][1]={color:'red'};b[2][3]={color:'red'};a.equal(L.evaluate(b,[{r:2,c:2,color:'red'}]).score,120); // x2 square
+ const c=E();for(let x=1;x<=5;x++)if(x!==2)c[2][x]={color:'red'}; // red row covers x2 at (2,2) and (2,5)
+ a.equal(L.evaluate(c,[{r:2,c:2,color:'red'}]).score,20*5*2*2*2); // 5 tiles, x2*x2 squares, 5+ bonus x2 = 800
+ const d=E();d[1][3]={color:'red'};d[1][4]={color:'red'};d[6][3]={color:'blue'};d[6][4]={color:'blue'};
+ const two=L.evaluate(d,[{r:1,c:5,color:'red'},{r:6,c:5,color:'blue'}]);a.equal(two.groups,2);a.equal(two.score,(60+60)*2); // combo x2
+ const base=L.evaluate(b,[{r:2,c:2,color:'red'}]).score;
+ for(const [bo,f] of [[1,2],[2,4],[3,8],[4,16],[{d:0,t:1},3],[{d:0,t:2},9],[{d:2,t:1},12],[{d:3,t:2},72]])a.equal(L.evaluate(b,[{r:2,c:2,color:'red'}],bo).score,base*f);
+ // charges: free 2 then 50 coins each, no cap beyond that
+ const G=L.newGame('pvp',rng);G.board=b.map(r=>r.slice());G.coins[0]=200; // 2 free + 4 paid = 6 charges
+ a.equal(L.charges(G),6);const pv=L.previewMove(G,[{r:2,c:2,color:'red'}],4);const r16=L.commit(G,[{r:2,c:2,color:'red'}],4);a.equal(r16.score,base*16);a.equal(pv.score,r16.score);a.equal(G.power[0],0);a.equal(G.coins[0],100);
+ const H=L.newGame('pvp',rng);H.board=b.map(r=>r.slice());H.coins[0]=50; // 3 charges: x8 ok, x16 capped to x8
+ a.equal(L.commit(H,[{r:2,c:2,color:'red'}],4).score,base*8);a.equal(H.coins[0],0);
+ const T=L.newGame('pvp',rng);T.board=b.map(r=>r.slice());a.equal(L.commit(T,[{r:2,c:2,color:'red'}],{d:1,t:1}).score,base*6);a.equal(T.power[0],0);
+ const Bm=L.newGame('pvp',rng);Bm.board=E();L.blast(Bm,'bomb',4,4);a.equal(L.charges(Bm),1+2);a.equal(L.blast(Bm,'bomb',1,1),null);} // blasts still 1/move, doubles still available
 // economy
 {const E=L.newGame('pvp',rng);a.deepEqual(E.coins,[100,100]);a.equal(L.newGame('ai',rng).coins[0],100);
- a.ok(L.swap(E));a.equal(E.coins[0],100);L.commit(E,[]); // p0 free swap
- a.ok(L.swap(E));a.equal(E.coins[0],50);L.commit(E,[]);E.coins[0]=40;a.equal(L.canSwap(E),false);a.equal(L.swap(E),false); // extra swap 50, blocked when broke
+ {const t0=E.turn,mv=E.moves.slice(),keep=E.racks[0].slice(3);a.ok(L.swap(E,0));a.equal(E.turn,t0);a.deepEqual(E.moves,mv);a.deepEqual(E.racks[0].slice(3),keep); // swap keeps turn/moves, only slot 0 changes
+ a.ok(L.swap(E,1));a.equal(E.coins[0],50);a.equal(E.turn,t0);E.coins[0]=100;} // 2nd swap same turn costs 50
+ a.ok(L.swap(E));a.equal(E.coins[0],50);E.coins[0]=100;a.equal(E.turn,1);L.commit(E,[]);a.equal(E.turn,0); // legacy (no slot) still ends turn for old online logs
+ a.ok(L.swap(E,2));a.equal(E.coins[0],50);a.equal(E.turn,0);L.commit(E,[]);L.commit(E,[]);
+ E.coins[0]=40;a.equal(L.canSwap(E),false);a.equal(L.swap(E),false); // extra swap 50, blocked when broke
  const F=L.newGame('pvp',rng);F.board=empty();L.blast(F,'bomb',1,1);L.commit(F,[]);L.commit(F,[]);L.blast(F,'bomb',1,1);L.commit(F,[]);L.commit(F,[]);
  a.equal(F.power[0],0);a.equal(F.coins[0],100);a.equal(L.powerCost(F),50);a.ok(L.blast(F,'cross',2,2));a.equal(F.coins[0],50); // 3rd power-up costs 50
  L.commit(F,[]);L.commit(F,[]);a.ok(L.blast(F,'cross',2,2));a.equal(F.coins[0],0);L.commit(F,[]);L.commit(F,[]);a.equal(L.canPower(F),false);
@@ -95,12 +114,11 @@ for(let i=0;i<30;i++){let sd=i+11;const r=()=>(sd=(sd*16807)%2147483647)/2147483
  a.equal(W.winner,0);a.equal(W.coins[0],110);
  const X=L.newGame('ai',rng);X.turn=1;X.board=empty();X.board[1][3]={color:'red'};X.board[1][4]={color:'red'};L.commit(X,[{r:1,c:5,color:'red'}]);while(!X.over)L.commit(X,[]);
  a.equal(X.winner,1);a.equal(X.coins[0],100);} // no coins for a loss
-// difficulty: average self-play score per level (same seeds), HARD >= MEDIUM >= EASY; hard move time capped
-function play(level,seed){let s=seed;const r=()=>(s=(s*16807)%2147483647)/2147483647;const G=L.newGame('ai',r);let tot=0,worst=0;
- while(!G.over){const t=Date.now(),m=L.aiPlan(G,level);worst=Math.max(worst,Date.now()-t);const before=G.scores[G.turn];L.commit(G,m.pl,m.boost);}
- return {avg:(G.scores[0]+G.scores[1]-G.pot)/2,worst};}
-const avg={};let worstHard=0;for(const lv of ['easy','medium','hard']){let t=0;for(let i=1;i<=4;i++){const p=play(lv,i*7919);t+=p.avg;if(lv==='hard')worstHard=Math.max(worstHard,p.worst);}avg[lv]=t/4;}
-a.ok(avg.hard>=avg.medium&&avg.medium>=avg.easy,JSON.stringify(avg));a.ok(worstHard<1500,'hard too slow '+worstHard);
+// difficulty: head-to-head (scores multiply now, so self-play averages are meaningless): HARD wins >= half vs MEDIUM, MEDIUM >= EASY; hard move time capped
+let worstHard=0;function duel(a,b,seed){let s=seed;const r=()=>(s=(s*16807)%2147483647)/2147483647;const G=L.newGame('ai',r);const lv=[a,b];
+ while(!G.over){const t=Date.now(),m=L.aiPlan(G,lv[G.turn]);if(lv[G.turn]==='hard')worstHard=Math.max(worstHard,Date.now()-t);if(m.swap&&L.swap(G,0))continue;L.commit(G,m.pl,m.boost);}return G.scores;}
+const avg={};for(const [x,y] of [['hard','medium'],['medium','easy']]){let w=0;for(let i=1;i<=3;i++)for(const sw of [0,1]){const sc=duel(sw?y:x,sw?x:y,i*7919),ix=sw?1:0;if(sc[ix]>=sc[1-ix])w++;}avg[x+'>'+y]=w+'/6';a.ok(w>=3,x+' vs '+y+' '+w);}
+a.ok(worstHard<1500,'hard too slow '+worstHard);
 console.log('ok',g.scores,g.winner,(Date.now()-t0)+'ms',JSON.stringify(avg),'hard worst move',worstHard+'ms');
 // UI scripts must at least parse (catches broken edits before shipping)
 for(const f of ['app.js','online.js','sw.js'])new (require('vm').Script)(require('fs').readFileSync(__dirname+'/'+f,'utf8'),{filename:f});

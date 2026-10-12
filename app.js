@@ -36,7 +36,7 @@ function firstFree(){const r=g.racks[g.turn];for(let s=0;s<3;s++)if(r[3*s]&&!use
 function tilesAt(s,r,c){return L.pieceTiles(g.racks[g.turn],s,g.orient[g.turn][s],r,c);}
 function render(){setTimeout(fit,0);clearTimeout(render.sv);render.sv=setTimeout(autosave,50);const b=cur(),bd=$('board');bd.innerHTML='';
  const pvTiles=placed().concat(ghost&&ghost.ok?ghost.tiles:[]),pv=L.previewMove(g,pvTiles,boost),willSet=new Set(pv.pops.map(q=>q.r*8+q.c));
- const pe=$('prev');pe.textContent='This move: +'+pv.score+(boost&&pv.score?' (⚡x2)':'');const showPv=human()&&!aim&&(pvTiles.length||boost);pe.className='';const pp=$('potprev');pp.textContent=showPv?'+'+pv.score+(boost&&pv.score?' ⚡':''):'';pp.className=showPv?(pv.score?'hot':'zero'):'';
+ const pe=$('prev');const fx=pv.factor||1;pe.textContent='This move: +'+pv.score+(fx>1?' (⚡x'+fx+')':'');const showPv=human()&&!aim&&(pvTiles.length||boost);pe.className='';const pp=$('potprev');pp.textContent=showPv?'+'+pv.score+(fx>1?' ⚡x'+fx:''):'';pp.className=showPv?(pv.score?'hot':'zero'):'';
  const aimSet=new Set(aim&&aim.r!=null?L.blastCells(aim.type,aim.r,aim.c).map(([y,x])=>y*8+x):[]),fxSet=new Set(blastFx.map(([y,x])=>y*8+x));
  const gk=ghost?new Set(ghost.tiles.map(t=>t.r*8+t.c)):new Set();
  for(let r=0;r<8;r++)for(let c=0;c<8;c++){const d=document.createElement('div'),m=L.mult(r,c);d.className='cell'+(m>1?' m'+m:'');d.dataset.r=r;d.dataset.c=c;const t=b[r][c];
@@ -55,9 +55,10 @@ function render(){setTimeout(fit,0);clearTimeout(render.sv);render.sv=setTimeout
  $('s0').textContent=g.scores[0];$('s1').textContent=g.scores[1];$('potn').textContent=g.pot;
  $('n0').textContent=NAMES()[0];$('n1').textContent=NAMES()[1];$('n0').className=g.turn===0?'on':'';$('n1').className=g.turn===1?'on':'';
  const mv=Math.min(g.moves[g.turn]+1,10),fin=L.isFinal(g)&&!g.over;$('banner').textContent=g.over?'GAME OVER':(fin?'FINAL MOVE!':'MOVE '+mv+' / 10');$('banner').className=fin?'final':'';
- const fr=g.power[g.turn];$('badge').textContent=boost?'✓':(fr>0?fr:'50🪙');$('power').className='btn'+(boost?' on':'');const cw=g.mode==='pvp'?g.turn:meIdx();$('coinN').textContent=g.coins[cw];
+ const fr=g.power[g.turn];const bf=bx();$('badge').textContent=bf>1?'x'+bf:(fr>0?fr:'50🪙');$('power').className='btn'+(boost?' on':'');const cw=g.mode==='pvp'?g.turn:meIdx();$('coinN').textContent=g.coins[cw];
  $('swapc').textContent=g.swaps[g.turn]>0?'FREE':'50🪙';if(profile.coins!==g.coins[meIdx()]){profile.coins=g.coins[meIdx()];saveProfile();}
- const h=human();$('play').disabled=!h;$('recall').disabled=!h||!pieces.length;$('swap').disabled=!h||pieces.length>0||!L.canSwap(g);$('power').disabled=!h||(!boost&&!L.canPower(g));}
+ const h=human();$('play').disabled=!h;$('recall').disabled=!h||!pieces.length;$('swap').disabled=!h||firstFree()==null||!L.canSwap(g);$('power').disabled=!h||(!boost&&!L.canPower(g)&&L.charges(g)<1);}
+function bn(){return boost?L.norm(boost):{d:0,t:0};}function bx(){const b=bn();return Math.pow(2,b.d)*Math.pow(3,b.t);}
 function tryPlace(s,r,c){if(s===null||!human()||usedSet(s)||!g.racks[g.turn][3*s])return false;const t=tilesAt(s,r,c);
  if(!L.validPiece(g.board,placed(),t)){say('Doesn\'t fit there');beep(200);return false;}
  pieces.push({s,r,c,tiles:t});sel=firstFree();beep(600);render();return true;}
@@ -102,16 +103,16 @@ document.addEventListener('touchmove',e=>{if(drag)e.preventDefault();},{passive:
 $('recall').onclick=()=>{pieces=[];sel=firstFree();boost=false;render();};
 // power-up menu
 let aim=null;// {type,r,c}
-$('power').onclick=()=>{if(!human())return;if(boost){boost=false;say('Double points cancelled');render();return;}if(!L.canPower(g))return;$('pleft').textContent=g.power[g.turn]>0?'('+g.power[g.turn]+' free left)':'(costs 50 🪙 · you have '+g.coins[g.turn]+')';$('pmenu').classList.add('show');};
+$('power').onclick=()=>{if(!human())return;const b=bn(),used=b.d+b.t,left=L.charges(g)-used,fl=Math.max(0,g.power[g.turn]-used);$('unboost').style.display=used?'':'none';$('pleft').textContent=(used?'now x'+bx()+' · ':'')+(fl>0?'('+fl+' free left)':'(costs 50 🪙 · you have '+(g.coins[g.turn]-Math.max(0,used-g.power[g.turn])*50)+')');$('pmenu').classList.add('show');};
 $('pmenu').onclick=e=>{const b=e.target.closest('[data-p]');if(!b&&e.target.id!=='pmenu')return;$('pmenu').classList.remove('show');const p=b&&b.dataset.p;
- if(p==='double'){boost=true;say('⚡ Double points this move!');render();}
+ if(p==='double'||p==='triple'||p==='unboost'){const b=bn();if(p==='unboost'){boost=false;say('Boosts cancelled (refunded)');render();return;}if(L.charges(g)<=b.d+b.t){say('No charges left');return;}if(p==='double')b.d++;else b.t++;boost=b;say('⚡ x'+bx()+' this move!');render();}
  else if(p==='bomb'||p==='cross'){aim={type:p,r:null,c:null};$('tmsg').textContent=(p==='bomb'?'💣 Bomb':'✚ Cross Blast')+': tap a target';$('tgo').disabled=true;$('tbar').classList.add('show');render();}};
 $('tno').onclick=()=>{aim=null;$('tbar').classList.remove('show');render();};
 $('tgo').onclick=()=>{if(!aim||aim.r==null)return;if(isOn())Online.act({type:'blast',b:aim.type,r:aim.r,c:aim.c});const res=L.blast(g,aim.type,aim.r,aim.c);aim=null;$('tbar').classList.remove('show');if(!res)return render();
  boom(res);say(res.pops.length?'💥 Cleared '+res.pops.length+' tiles':'💥 Nothing to clear');};
 function boom(res){setTimeout(autosave,0);blastFx=res.cells;pops=res.pops;SFX.boom();render();burst(res.pops);setTimeout(()=>{blastFx=[];pops=[];render();},550);}
 let blastFx=[];
-$('swap').onclick=()=>{const paid=g.swaps[g.turn]<1;if(!L.canSwap(g)){say('Not enough coins');return;}if(isOn())Online.act({type:'swap'});L.swap(g);say(paid?'Swapped (−50 🪙)':'Free swap used');next();};
+$('swap').onclick=()=>{const paid=g.swaps[g.turn]<1;if(!L.canSwap(g)){say('Not enough coins');return;}let s=sel;if(s==null||pieces.some(p=>p.s===s))s=firstFree();if(s==null){say('Select a tray piece to swap');return;}if(isOn())Online.act({type:'swap',s});L.swap(g,s);sel=s;say((paid?'Swapped piece (−50 🪙)':'Free swap used')+' — still your turn');render();autosave();};
 $('play').onclick=()=>{const np=pieces.length,p=g.turn;if(isOn())Online.act({type:'commit',pl:placed(),boost});const res=L.commit(g,placed(),boost);pop(res);markOwner(p);pieces=[];boost=false;
  say(res.score?'+'+res.score+' (cleared '+res.cleared+')':(np?'No match – need 3!':'Passed (pot +100)'));next();};
 function pop(res){pops=res.pops||[];pops.forEach((q,i)=>SFX.pop(i));if(res.score)setTimeout(()=>SFX.chime(res.score),pops.length*60);else SFX.pass();burst(pops);setTimeout(()=>{pops=[];render();},650);}
@@ -120,16 +121,16 @@ function markOwner(p){g.board.forEach(r=>r.forEach(t=>{if(t&&t.star&&t.owner===u
 function next(){sel=g.over?null:firstFree();render();if(g.over)return finish();autosave();
  if(g.mode==='pvp'){say(NAMES()[g.turn]+"'s turn");return;}
  if(isOn()){if(g.turn!==meIdx())say('Waiting for '+NAMES()[g.turn]+'…');return;}
- if(g.turn===1){busy=true;render();setTimeout(()=>{const m=L.aiPlan(g,profile.difficulty);if(m.swap&&L.swap(g)){busy=false;say('Computer swapped');next();return;}if(m.blast){boom(m.blast);say('Computer used '+(m.blast.type==='bomb'?'💣 Bomb':'✚ Cross Blast'));}pieces=[];for(let i=0;i<m.pl.length;i+=3)pieces.push({s:Math.floor(m.pl[i].slot/3),tiles:m.pl.slice(i,i+3)});render();
-  setTimeout(()=>{const res=L.commit(g,placed(),m.boost);if(m.boost)say('Computer ⚡ x2');pop(res);markOwner(1);pieces=[];busy=false;say(res.score?'Computer +'+res.score:'Computer passes');next();},800);},500);}}
+ if(g.turn===1){busy=true;render();setTimeout(()=>{const m=L.aiPlan(g,profile.difficulty);if(m.swap&&L.swap(g,0)){busy=false;say('Computer swapped a piece');next();return;}if(m.blast){boom(m.blast);say('Computer used '+(m.blast.type==='bomb'?'💣 Bomb':'✚ Cross Blast'));}pieces=[];for(let i=0;i<m.pl.length;i+=3)pieces.push({s:Math.floor(m.pl[i].slot/3),tiles:m.pl.slice(i,i+3)});render();
+  setTimeout(()=>{const res=L.commit(g,placed(),m.boost);if(m.boost){const b=L.norm(m.boost);say('Computer ⚡ x'+Math.pow(2,b.d)*Math.pow(3,b.t));}pop(res);markOwner(1);pieces=[];busy=false;say(res.score?'Computer +'+res.score:'Computer passes');next();},800);},500);}}
 function finish(){clearSave();const n=NAMES(),w=g.winner,me=meIdx();
  $('result').innerHTML=(w<0?'Tie game!':n[w]+' wins the pot!')+'<br>'+g.scores[0]+' – '+g.scores[1]+'<br>'+(g.mode!=='pvp'&&w===me?'+10 coins! ':'')+'Coins: '+g.coins[me];profile.coins=g.coins[me];profile.games++;if(w===me)profile.wins++;if(isOn()){Online.leave();Online.clear();}saveProfile();showProfile();$('overlay').classList.add('show');}
 function start(mode){$('result').innerHTML='';const nm=$('pname').value.trim();if(!nm){$('pname').focus();say('Enter your name first');return;}profile.name=nm;saveProfile();clearSave();g=L.newGame(mode);g.coins[0]=profile.coins;pieces=[];boost=false;busy=false;sel=firstFree();g._live=true;$('overlay').classList.remove('show');render();autosave();}
 // ---- online rooms ----
-function applySilent(a){if(a.type==='commit'){const p=g.turn;L.commit(g,a.pl,a.boost);markOwner(p);}else if(a.type==='swap')L.swap(g);else if(a.type==='blast')L.blast(g,a.b,a.r,a.c);}
+function applySilent(a){if(a.type==='commit'){const p=g.turn;L.commit(g,a.pl,a.boost);markOwner(p);}else if(a.type==='swap')L.swap(g,a.s);else if(a.type==='blast')L.blast(g,a.b,a.r,a.c);}
 function remoteAct(a){const p=g.turn;
  if(a.type==='commit'){const res=L.commit(g,a.pl,a.boost);pop(res);markOwner(p);say(NAMES()[p]+(res.score?' +'+res.score:' passes'));}
- else if(a.type==='swap'){L.swap(g);say(NAMES()[p]+' swapped');}
+ else if(a.type==='swap'){L.swap(g,a.s);say(NAMES()[p]+' swapped');}
  else if(a.type==='blast'){const res=L.blast(g,a.b,a.r,a.c);if(res){boom(res);say(NAMES()[p]+' used '+(a.b==='bomb'?'💣 Bomb':'✚ Cross Blast'));}render();return;}
  next();}
 const pending=[];
