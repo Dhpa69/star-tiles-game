@@ -23,7 +23,8 @@ a.ok(L.inLine([{r:2,c:3}],2,6));a.ok(L.inLine([{r:2,c:3}],5,3));a.ok(!L.inLine([
 a.ok(!L.inLine([{r:2,c:3},{r:2,c:4}],3,3));a.ok(L.validNext(b,[{r:3,c:5,color:'red'}],3,6));a.ok(!L.validNext(b,[{r:3,c:5,color:'red'}],2,4));
 
 // zero-tile move + 9-tile refill
-const z=L.newGame('ai',rng),pot=z.pot;const kept=z.racks[0].slice(3);
+const z=L.newGame('ai',rng);a.equal(z.pot,undefined); // v21: no pot
+const kept=z.racks[0].slice(3);
 z.board=empty();z.board[3][3]={color:'x'};const pc=L.pieceTiles(z.racks[0],0,'h',2,2);a.ok(L.validPiece(z.board,[],pc));L.commit(z,pc);
 a.equal(z.racks[0].filter(x=>x).length,6);a.deepEqual(z.racks[0].slice(3),kept);
 L.commit(z,[]);a.ok(z.turn===0);a.equal(z.racks[0].filter(x=>x).length,9);a.deepEqual(z.racks[0].slice(3),kept);a.equal(z.moves[1],1);
@@ -100,6 +101,10 @@ for(let i=0;i<30;i++){let sd=i+11;const r=()=>(sd=(sd*16807)%2147483647)/2147483
  a.equal(L.commit(H,[{r:2,c:2,color:'red'}],4).score,base*8);a.equal(H.coins[0],0);
  const T=L.newGame('pvp',rng);T.board=b.map(r=>r.slice());a.equal(L.commit(T,[{r:2,c:2,color:'red'}],{d:1,t:1}).score,base*6);a.equal(T.power[0],0);
  const Bm=L.newGame('pvp',rng);Bm.board=E();L.blast(Bm,'bomb',4,4);a.equal(L.charges(Bm),1+2);a.equal(L.blast(Bm,'bomb',1,1),null);} // blasts still 1/move, doubles still available
+// v21: no pot, no pass bonus, winner = higher score; old saves carrying a pot still finish fine
+{const P=L.newGame('pvp',rng);P.pot=4321;P.board=empty();P.board[1][3]={color:'red'};P.board[1][4]={color:'red'};L.commit(P,[{r:1,c:5,color:'red'}]);a.equal(P.scores[0],60);
+ L.commit(P,[]);a.equal(P.scores[1],0);while(!P.over)L.commit(P,[]);a.deepEqual(P.scores,[60,0]);a.equal(P.winner,0);a.equal(P.pot,undefined);
+ const T=L.newGame('pvp',rng);while(!T.over)L.commit(T,[]);a.deepEqual(T.scores,[0,0]);a.equal(T.winner,-1);}
 // economy
 {const E=L.newGame('pvp',rng);a.deepEqual(E.coins,[100,100]);a.equal(L.newGame('ai',rng).coins[0],100);
  {const t0=E.turn,mv=E.moves.slice(),keep=E.racks[0].slice(3);a.ok(L.swap(E,0));a.equal(E.turn,t0);a.deepEqual(E.moves,mv);a.deepEqual(E.racks[0].slice(3),keep); // swap keeps turn/moves, only slot 0 changes

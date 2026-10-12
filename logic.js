@@ -9,7 +9,7 @@ function deal(rng){return [].concat(piece(rng),piece(rng),piece(rng));}
 function newGame(mode,rng){rng=rng||Math.random;
  const b=[];for(let r=0;r<N;r++){b.push([]);for(let c=0;c<N;c++)b[r].push(null);}
  [[3,3],[3,4],[4,3],[4,4]].forEach(([r,c])=>b[r][c]={color:rndColor(rng)});
- return {orient:[[0,0,0],[0,0,0]],board:b,mode,turn:0,moves:[0,0],scores:[0,0],pot:1000,racks:[deal(rng),deal(rng)],power:[2,2],swaps:[1,1],coins:[START_COINS,mode==='ai'?0:START_COINS],over:false,rng};}
+ return {orient:[[0,0,0],[0,0,0]],board:b,mode,turn:0,moves:[0,0],scores:[0,0],racks:[deal(rng),deal(rng)],power:[2,2],swaps:[1,1],coins:[START_COINS,mode==='ai'?0:START_COINS],over:false,rng};}
 const inb=(r,c)=>r>=0&&c>=0&&r<N&&c<N;
 function canPlace(b,r,c){ if(!inb(r,c)||b[r][c])return false;
  if(b.every(row=>row.every(t=>!t)))return true; // empty board: anywhere
@@ -63,7 +63,7 @@ function dbl(b){return norm(b).d;}
 function previewMove(g,pl,boost){return evaluate(g.board,pl,capB(g,boost));}
 function commit(g,pl,boost){const p=g.turn;
  {const B=capB(g,boost);for(let i=0;i<B.d+B.t;i++)spendCharge(g);boost=B;}
- const res=evaluate(g.board,pl,boost);g.board=res.board;g.scores[p]+=res.score;g.pot+=Math.round(res.score/2)+100;
+ const res=evaluate(g.board,pl,boost);g.board=res.board;g.scores[p]+=res.score; // v21: no pot, no pass bonus
  const rack=g.racks[p];pl.forEach(x=>{let i=(x.slot!=null&&rack[x.slot]===x.color)?x.slot:rack.indexOf(x.color);if(i>=0)rack[i]=null;});
  endTurn(g);return res;}
 function refill(g){const r=g.racks[g.turn];for(let s=0;s<3;s++)if(!r[3*s]){piece(g.rng).forEach((t,j)=>r[3*s+j]=t);g.orient[g.turn][s]=0;}}
@@ -75,7 +75,7 @@ function swap(g,s){if(!canSwap(g))return false;if(g.swaps[g.turn]>0)g.swaps[g.tu
  const p=piece(g.rng);for(let i=0;i<3;i++)g.racks[g.turn][s*3+i]=p[i];g.orient[g.turn][s]=0;return true;}
 function endTurn(g){g.moves[g.turn]++;g.usedPower=false;
  if(g.moves[0]>=MOVES&&g.moves[1]>=MOVES){g.over=true;const w=g.scores[0]===g.scores[1]?-1:(g.scores[0]>g.scores[1]?0:1);g.winner=w;
-  if(w>=0)g.scores[w]+=g.pot;if(w>=0)g.coins[w]+=WIN_COINS;return;}
+  delete g.pot;if(w>=0)g.coins[w]+=WIN_COINS;return;}
  g.turn=1-g.turn;refill(g);}
 function isFinal(g){return g.moves[g.turn]===MOVES-1;}
 // bot search over whole pieces (all 4 orientations); beam = how many first pieces to extend; deadline caps time

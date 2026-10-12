@@ -142,3 +142,9 @@ html,body{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;overscro
 #ostat{min-height:16px;overflow:hidden;white-space:nowrap}
 #toast{will-change:opacity;contain:layout}
 #pot{min-width:118px;box-sizing:border-box}#potprev{max-width:118px;overflow:hidden;text-overflow:ellipsis}
+
+/* v21: THIS MOVE pill (pot removed); fixed width, no jump */
+#potn{font-size:10px;letter-spacing:1px;line-height:12px}
+#potprev,#potprev:empty{visibility:visible!important;font-size:22px;line-height:24px;min-height:24px;background:none!important;color:#fff;animation:none}
+#potprev.hot{color:#fff;text-shadow:0 0 6px #fff8}
+#pot{width:128px;min-width:128px;max-width:128px}#potprev{max-width:124px}
