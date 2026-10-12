@@ -1,5 +1,5 @@
 # Online mode
-Room play (v14) works with no account. Moves go through the free public relay ntfy.sh, using HTTPS and Server-Sent Events.
+Room play (v14) works with no account. Since v19 a phone that left can rejoin: it replays its saved move log, then catches up from the relay history (ntfy.sh keeps messages about 12h by default) or asks the other phone to resend. Moves go through the free public relay ntfy.sh, using HTTPS and Server-Sent Events.
 Both phones run the same seeded game and send each other only their actions: commit, swap or blast.
 Anyone who knows a room code can read that room's messages: player names and moves. No other data is sent.
 
