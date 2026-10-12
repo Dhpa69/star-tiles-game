@@ -34,7 +34,7 @@ const usedSet=s=>pieces.some(p=>p.s===s);
 function human(){return !g.over&&(g.mode==='pvp'||g.turn===meIdx())&&!busy;}
 function firstFree(){const r=g.racks[g.turn];for(let s=0;s<3;s++)if(r[3*s]&&!usedSet(s))return s;return null;}
 function tilesAt(s,r,c){return L.pieceTiles(g.racks[g.turn],s,g.orient[g.turn][s],r,c);}
-function render(){setTimeout(fit,0);const b=cur(),bd=$('board');bd.innerHTML='';
+function render(){setTimeout(fit,0);clearTimeout(render.sv);render.sv=setTimeout(autosave,50);const b=cur(),bd=$('board');bd.innerHTML='';
  const pvTiles=placed().concat(ghost&&ghost.ok?ghost.tiles:[]),pv=L.previewMove(g,pvTiles,boost),willSet=new Set(pv.pops.map(q=>q.r*8+q.c));
  const pe=$('prev');pe.textContent='This move: +'+pv.score+(boost&&pv.score?' (⚡x2)':'');const showPv=human()&&!aim&&(pvTiles.length||boost);pe.className='';const pp=$('potprev');pp.textContent=showPv?'+'+pv.score+(boost&&pv.score?' ⚡':''):'';pp.className=showPv?(pv.score?'hot':'zero'):'';
  const aimSet=new Set(aim&&aim.r!=null?L.blastCells(aim.type,aim.r,aim.c).map(([y,x])=>y*8+x):[]),fxSet=new Set(blastFx.map(([y,x])=>y*8+x));
@@ -123,8 +123,8 @@ function next(){sel=g.over?null:firstFree();render();if(g.over)return finish();a
  if(g.turn===1){busy=true;render();setTimeout(()=>{const m=L.aiPlan(g,profile.difficulty);if(m.swap&&L.swap(g)){busy=false;say('Computer swapped');next();return;}if(m.blast){boom(m.blast);say('Computer used '+(m.blast.type==='bomb'?'💣 Bomb':'✚ Cross Blast'));}pieces=[];for(let i=0;i<m.pl.length;i+=3)pieces.push({s:Math.floor(m.pl[i].slot/3),tiles:m.pl.slice(i,i+3)});render();
   setTimeout(()=>{const res=L.commit(g,placed(),m.boost);if(m.boost)say('Computer ⚡ x2');pop(res);markOwner(1);pieces=[];busy=false;say(res.score?'Computer +'+res.score:'Computer passes');next();},800);},500);}}
 function finish(){clearSave();const n=NAMES(),w=g.winner,me=meIdx();
- $('msg').innerHTML=(w<0?'Tie game!':n[w]+' wins the pot!')+'<br>'+g.scores[0]+' – '+g.scores[1]+'<br>'+(g.mode!=='pvp'&&w===me?'+10 coins! ':'')+'Coins: '+g.coins[me];profile.coins=g.coins[me];profile.games++;if(w===me)profile.wins++;if(isOn())Online.leave();saveProfile();showProfile();$('overlay').classList.add('show');}
-function start(mode){const nm=$('pname').value.trim();if(!nm){$('pname').focus();say('Enter your name first');return;}profile.name=nm;saveProfile();clearSave();g=L.newGame(mode);g.coins[0]=profile.coins;pieces=[];boost=false;busy=false;sel=firstFree();g._live=true;$('overlay').classList.remove('show');render();autosave();}
+ $('result').innerHTML=(w<0?'Tie game!':n[w]+' wins the pot!')+'<br>'+g.scores[0]+' – '+g.scores[1]+'<br>'+(g.mode!=='pvp'&&w===me?'+10 coins! ':'')+'Coins: '+g.coins[me];profile.coins=g.coins[me];profile.games++;if(w===me)profile.wins++;if(isOn())Online.leave();saveProfile();showProfile();$('overlay').classList.add('show');}
+function start(mode){$('result').innerHTML='';const nm=$('pname').value.trim();if(!nm){$('pname').focus();say('Enter your name first');return;}profile.name=nm;saveProfile();clearSave();g=L.newGame(mode);g.coins[0]=profile.coins;pieces=[];boost=false;busy=false;sel=firstFree();g._live=true;$('overlay').classList.remove('show');render();autosave();}
 // ---- online rooms ----
 function remoteAct(a){const p=g.turn;
  if(a.type==='commit'){const res=L.commit(g,a.pl,a.boost);pop(res);markOwner(p);say(NAMES()[p]+(res.score?' +'+res.score:' passes'));}
@@ -152,12 +152,12 @@ function autosave(){if(!g||!g.started&&g.mode!=='online'&&!g._live)return;if(g.m
 function clearSave(){localStorage.removeItem(SKEY);showResume();}
 function loadSave(){try{return JSON.parse(localStorage.getItem(SKEY));}catch(e){return null;}}
 function showResume(){const s=loadSave(),b=$('resumeBtn');if(!b)return;b.style.display=s&&s.g&&!s.g.over?'block':'none';
- if(s&&s.g)b.textContent='▶ Resume game ('+(s.g.mode==='ai'?'vs COMPUTER':'Pass & Play')+', move '+Math.min(10,s.g.moves[0]+1)+'/10)';}
+ if(s&&s.g)b.textContent=(g&&g._live&&!g.over?'▶ Continue game (':'▶ Resume game (')+(s.g.mode==='ai'?'vs COMPUTER':'Pass & Play')+', move '+Math.min(10,s.g.moves[0]+1)+'/10)';}
 $('resumeBtn').onclick=()=>{const s=loadSave();if(!s)return;g=Object.assign(s.g,{rng:Math.random,_live:true});if(s.difficulty)profile.difficulty=s.difficulty;
  pieces=(s.pieces||[]).filter(p=>p&&p.tiles);boost=false;busy=false;aim=null;$('overlay').classList.remove('show');sel=firstFree();
  if(g.mode==='ai'&&g.turn===1){pieces=[];next();}else render();say('Game resumed');};
 addEventListener('pagehide',autosave);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')autosave();});
-$('vsAI').onclick=()=>start('ai');$('vsP').onclick=()=>start('pvp');$('menuBtn').onclick=()=>$('overlay').classList.add('show');
+$('vsAI').onclick=()=>start('ai');$('vsP').onclick=()=>start('pvp');$('menuBtn').onclick=()=>{autosave();showResume();$('overlay').classList.add('show');};
 $('infoBtn').onclick=()=>say('Drag a 3-tile piece · tap it again or ↻ to rotate · placed pieces stay movable until PLAY · ⚡ = power-ups · place anywhere it fits');
 function fit(){const bd=$('board'),app=$('app');let used=0;[...app.children].forEach(c=>{if(c!==bd&&c.id!=='overlay')used+=c.getBoundingClientRect().height;});
  const st=getComputedStyle(app),avail=app.clientHeight-parseFloat(st.paddingTop)-used-4;bd.style.width=Math.max(120,Math.min(app.clientWidth,avail))+'px';}

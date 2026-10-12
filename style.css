@@ -128,3 +128,7 @@ html,body,button,.set,.rot,#rack{touch-action:manipulation}
 /* v17 */
 .rotb{display:none!important}
 .cell.pshake .tile{animation:shake .35s}@keyframes shake{20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
+/* v18 */
+.card .resume{margin:4px 0 10px;font-size:18px;padding:14px;box-shadow:0 0 0 3px #b8f5c0,0 3px 8px #0004}
+.howto{text-align:left;margin:4px 0 8px;font-size:13px;color:#333}.howto summary{font-weight:900;color:#1b3f8f;cursor:pointer}
+#result{font-weight:900;color:#1b3f8f;margin:4px 0}#result:empty{display:none}

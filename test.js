@@ -102,3 +102,6 @@ function play(level,seed){let s=seed;const r=()=>(s=(s*16807)%2147483647)/214748
 const avg={};let worstHard=0;for(const lv of ['easy','medium','hard']){let t=0;for(let i=1;i<=4;i++){const p=play(lv,i*7919);t+=p.avg;if(lv==='hard')worstHard=Math.max(worstHard,p.worst);}avg[lv]=t/4;}
 a.ok(avg.hard>=avg.medium&&avg.medium>=avg.easy,JSON.stringify(avg));a.ok(worstHard<1500,'hard too slow '+worstHard);
 console.log('ok',g.scores,g.winner,(Date.now()-t0)+'ms',JSON.stringify(avg),'hard worst move',worstHard+'ms');
+// UI scripts must at least parse (catches broken edits before shipping)
+for(const f of ['app.js','online.js','sw.js'])new (require('vm').Script)(require('fs').readFileSync(__dirname+'/'+f,'utf8'),{filename:f});
+console.log('ui scripts parse ok');
