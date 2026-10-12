@@ -1,22 +1,36 @@
-const L=require('./logic.js'),a=require('assert');
+const L=require('./logic.js'),a=require('assert'),fs=require('fs');
 let s=1;const rng=()=>(s=(s*16807)%2147483647)/2147483647;
-const g=L.newGame('ai',rng);a.equal(L.canPlace(g.board,0,0),false);a.ok(L.canPlace(g.board,2,3));
-const b=g.board.map(r=>r.map(()=>null));b[3][3]={color:'red'};b[3][4]={color:'red'};
-const e=L.evaluate(b,[{r:3,c:5,color:'red'}]);a.ok(e.board[3][3].star&&e.cleared==3&&e.score==60);
-a.equal(L.evaluate(b,[{r:0,c:0,color:'red'}]).score,0); // no points for plain placement
-const b3=b.map(r=>r.map(()=>null));b3[4][7]={star:true,mult:1};b3[6][7]={star:true,mult:1};
-const w=L.evaluate(b3,[{r:5,c:7,color:'blue'}]);a.ok(w.score==60&&w.cleared==1&&w.board[5][7].star); // stars as wildcards
-const b4=b.map(r=>r.map(()=>null));b4[0][1]={color:'red'};b4[1][0]={color:'red'};a.equal(L.evaluate(b4,[{r:0,c:0,color:'red'}]).score,180); // x3 corner
-// star tile placement as wildcard
-const b5=b.map(r=>r.map(()=>null));b5[3][3]={color:'red'};b5[3][4]={color:'red'};
-const st=L.evaluate(b5,[{r:3,c:5,color:'star'}]);a.ok(st.score==60&&st.board[3][5].star&&st.board[3][3].star);
-const lone=L.evaluate(b5,[{r:5,c:5,color:'star'}]);a.ok(lone.score==0&&lone.board[5][5].star&&!lone.board[3][3].star);
-// ~20% star deal
+const empty=()=>Array.from({length:8},()=>Array(8).fill(null));
+const g=L.newGame('ai',rng);a.equal(g.racks[0].length,9);a.equal(L.canPlace(g.board,0,0),false);a.ok(L.canPlace(g.board,2,3));
+const b=empty();b[3][3]={color:'red'};b[3][4]={color:'red'};
+const e=L.evaluate(b,[{r:3,c:5,color:'red'}]);a.ok(e.board[3][3]===null&&e.board[3][5]===null&&e.cleared==3&&e.score==60&&e.pops.length==3); // cleared, not starred
+a.equal(L.evaluate(b,[{r:0,c:0,color:'red'}]).score,0);
+const b3=empty();b3[4][7]={star:true};b3[6][7]={star:true};a.equal(L.evaluate(b3,[{r:5,c:7,color:'blue'}]).score,60);
+const b4=empty();b4[0][1]={color:'red'};b4[1][0]={color:'red'};a.equal(L.evaluate(b4,[{r:0,c:0,color:'red'}]).score,180);
+const st=L.evaluate(b,[{r:3,c:5,color:'star'}]);a.ok(st.score==60&&st.board[3][5].star&&st.board[3][3]===null); // star stays, reds cleared
 let k=0;for(let i=0;i<5000;i++)if(L.rnd(Math.random)==='star')k++;a.ok(k>800&&k<1200);
-// zero-tile move
-const z=L.newGame('ai',rng),pot=z.pot,rk=z.racks[0].slice();L.commit(z,[]);a.ok(z.pot==pot+100&&z.moves[0]==1&&z.turn==1);a.deepEqual(z.racks[0],rk);
-// bot passes when no scoring move
-const q=L.newGame('ai',rng);q.board=q.board.map(r=>r.map(()=>null));q.board[3][3]={color:'red'};q.board[3][4]={color:'green'};q.racks[0]=['yellow','blue','pink'];
+// wild stars: red+red+star scores; 2 placed stars + 1 colored in a line scores; 2 board stars + 1 colored scores
+a.equal(L.evaluate(b,[{r:3,c:2,color:'star'}]).score,60);
+const b6=empty();b6[1][1]={color:'green'};a.equal(L.evaluate(b6,[{r:1,c:2,color:'star'},{r:1,c:3,color:'star'}]).score,60);
+const b7=empty();b7[1][1]={color:'green'};a.equal(L.evaluate(b7,[{r:1,c:2,color:'star'}]).score,0);
+const b8=empty();b8[4][2]={star:true};b8[4][3]={star:true};a.equal(L.evaluate(b8,[{r:4,c:1,color:'pink'}]).score,60);
+const b9=empty();for(let c=0;c<8;c++){b9[6][c]={star:true};}a.equal(L.evaluate(b9,[{r:5,c:4,color:'pink'}]).score,60); // long star chain capped at 2 stars
+a.ok(L.canPlace(empty(),0,0)); a.ok(!L.evaluate(b4,[{r:0,c:0,color:'red'}]).board.flat().some(x=>x)); // no cluster stars
+// straight line rule
+a.ok(L.inLine([{r:2,c:3}],2,6));a.ok(L.inLine([{r:2,c:3}],5,3));a.ok(!L.inLine([{r:2,c:3}],3,4));
+a.ok(!L.inLine([{r:2,c:3},{r:2,c:4}],3,3));a.ok(L.validNext(b,[{r:3,c:5,color:'red'}],3,6));a.ok(!L.validNext(b,[{r:3,c:5,color:'red'}],2,4));
+const z0=L.newGame('ai',rng);a.throws(()=>L.commit(z0,[{r:2,c:3,color:'red'},{r:5,c:4,color:'red'}]));
+// zero-tile move + 9-tile refill
+const z=L.newGame('ai',rng),pot=z.pot;const kept=z.racks[0].slice(3);
+z.board[2][3]=null;L.commit(z,[{r:2,c:3,color:z.racks[0][0],slot:0},{r:2,c:4,color:z.racks[0][1],slot:1}]);
+a.equal(z.racks[0].filter(x=>x).length,7);a.deepEqual(z.racks[0].slice(3),kept);
+L.commit(z,[]);a.ok(z.turn===0);a.equal(z.racks[0].filter(x=>x).length,9);a.deepEqual(z.racks[0].slice(3),kept);a.equal(z.moves[1],1);
+// bot passes when nothing scores; bot moves are straight lines
+const q=L.newGame('ai',rng);q.board=empty();q.board[3][3]={color:'red'};q.board[3][4]={color:'green'};q.racks[0]=['yellow','blue','pink','yellow','blue','pink','orange',null,null];
 a.deepEqual(L.aiMove(q).pl,[]);
-let n=0;while(!g.over){const m=L.aiMove(g);L.commit(g,m.pl,m.boost);n++;}
-a.equal(n,20);a.deepEqual(g.moves,[10,10]);console.log('ok',g.scores,g.winner);
+const q2=L.newGame('ai',rng);q2.board=empty();q2.board[3][3]={color:'red'};q2.racks[0]=['red','red','red','blue','blue','blue','green','green','green'];
+const m2=L.aiMove(q2);a.ok(m2.pl.length>=2&&L.isLine(m2.pl));
+// name
+const all=['app.js','index.html','logic.js'].map(f=>fs.readFileSync(__dirname+'/'+f,'utf8')).join('');a.ok(!/dimble/i.test(all)&&/COMPUTER/.test(all));
+let n=0;const t0=Date.now();while(!g.over){const m=L.aiMove(g);a.ok(L.isLine(m.pl));L.commit(g,m.pl,m.boost);n++;}
+a.equal(n,20);a.deepEqual(g.moves,[10,10]);console.log('ok',g.scores,g.winner,(Date.now()-t0)+'ms');
