@@ -136,7 +136,8 @@ function remoteAct(a){const p=g.turn;
  next();}
 const pending=[];
 function onMsg(d){const S=Online.st;
- if(d.t==='hello'&&S.host&&S.seed==null){const seed=Math.floor(Math.random()*2**31);const names=[profile.name,d.name],coins=[profile.coins,+d.coins||100];Online.start(seed,names,coins);beginOnline(seed,names,coins);}
+ if(d.t==='hello'&&S.host&&S.seed!=null&&S.names){Online.start(S.seed,S.names,S.coins);} // v24: joiner didn't get start yet -> resend
+ else if(d.t==='hello'&&S.host&&S.seed==null){const seed=Math.floor(Math.random()*2**31);const names=[profile.name,d.name],coins=[profile.coins,+d.coins||100];Online.start(seed,names,coins);beginOnline(seed,names,coins);}
  else if(d.t==='start'&&!S.host&&S.seed==null)beginOnline(d.seed,d.names,d.coins);
  else if(d.t==='act'){if(d.n<S.applied||!isOn())return;if(!pending.some(x=>x.n===d.n))pending.push(d);pending.sort((x,y)=>x.n-y.n);
   while(pending.length&&pending[0].n<S.applied)pending.shift();
@@ -152,16 +153,16 @@ function updOnl(){const el=$('ostat');if(!isOn()||g.over){el.className='';return
 setInterval(()=>{if(isOn()&&!g.over){if(document.visibilityState==='visible')Online.ping();updOnl();}},25000);
 setInterval(()=>{if(isOn())updOnl();},5000);
 document.addEventListener('visibilitychange',()=>{if(!isOn())return;if(document.visibilityState==='visible'){Online.ping('back');}else Online.ping('away');});
-function beginOnline(seed,names,coins,log){pending.length=0;g=L.newGame('pvp',Online.mulberry(seed));g.mode='online';g.names=names;g.coins=coins.slice();g.coinsStart=coins.slice();g.started=true;Online.setGame(seed,names,coins);(log||[]).forEach(applySilent);
+function beginOnline(seed,names,coins,log){pending.length=0;stopWait();g=L.newGame('pvp',Online.mulberry(seed));g.mode='online';g.names=names;g.coins=coins.slice();g.coinsStart=coins.slice();g.started=true;Online.setGame(seed,names,coins);(log||[]).forEach(applySilent);
  pieces=[];boost=false;busy=false;sel=firstFree();$('overlay').classList.remove('show');$('onl').classList.remove('show');render();updOnl();say(g.turn===meIdx()?'Your turn!':'Waiting for '+NAMES()[g.turn]+'…');}
-const onlStatus=t=>{$('onlmsg').textContent=t;if(isOn()&&t){$('ostat').textContent='⚠ '+t;$('ostat').className='show away';}else if(isOn())updOnl();};
+const onlStatus=t=>{if(waitT){onlErr(t);return;}$('onlmsg').textContent=t;if(isOn()&&t){$('ostat').textContent='⚠ '+t;$('ostat').className='show away';}else if(isOn())updOnl();};
 $('hostBtn').onclick=()=>{const nm=$('pname').value.trim();if(!nm){$('pname').focus();say('Enter your name first');return;}profile.name=nm;saveProfile();
  const code=Online.host(nm,profile.coins,{msg:onMsg,status:onlStatus});$('onl').classList.add('show');$('onlcode').textContent=code;onlStatus('Share this code. Waiting for a friend to join…');};
 $('joinBtn').onclick=()=>{const nm=$('pname').value.trim();if(!nm){$('pname').focus();say('Enter your name first');return;}profile.name=nm;saveProfile();
- const code=$('joinCode').value.trim().toUpperCase();if(code.length<4){say('Enter the room code');return;}
+ const code=Online.clean($('joinCode').value);if(code.length!==6){say('Room codes have 6 letters/numbers');onlErr('Room codes have 6 letters/numbers (you typed '+code.length+').');return;}
  joinRoom(code);};
 function joinRoom(code){const nm=profile.name;if(Online.saved(code)&&!Online.saved(code).over){openGame(code);return;}Online.join(code,nm,profile.coins,{msg:onMsg,status:onlStatus});$('overlay').classList.remove('show');$('onl').classList.add('show');$('onlcode').textContent=code;onlStatus('Joining room…');renderGames();}
-$('onlCancel').onclick=()=>{Online.leave();$('onl').classList.remove('show');renderGames();say('Room kept in My online games');};
+$('onlCancel').onclick=()=>{stopWait();Online.leave();$('onl').classList.remove('show');renderGames();say('Room kept in My online games');};
 // ---- autosave / resume (local games only) ----
 const SKEY='startiles.save';
 function autosave(){if(!g||!g.started&&g.mode!=='online'&&!g._live)return;if(g.mode==='online'||g.over)return;
@@ -234,3 +235,17 @@ function quitGame(){if(!g||g.over||!(g._live||isOn()))return;
  else{if(!confirm('Quit this game? Progress is lost and no coins are awarded.'))return;g.over=true;clearSave();}
  g=L.newGame('ai');g.coins[0]=profile.coins;pieces=[];boost=false;busy=false;$('result').innerHTML='Game quit.';render();showProfile();showResume();$('overlay').classList.add('show');}
 $('quitBtn').onclick=quitGame;
+
+// ---- v24: reliable connect: retries, status, timeout + Retry ----
+let waitT=null,waitStart=0;
+function stopWait(){clearInterval(waitT);waitT=null;const r=$('onlRetry');if(r)r.style.display='none';}
+function onlErr(t){const e=$('onlerr');if(e)e.textContent=t||'';}
+function startWait(){stopWait();waitStart=Date.now();onlErr('');
+ waitT=setInterval(()=>{const S=Online.st;if(!S.on||S.seed!=null){stopWait();return;}const sec=Math.round((Date.now()-waitStart)/1000),net=S.netOk&&Date.now()-S.netOk<15000;
+  const conn=net?'✓ Connected to relay':'… connecting to relay';
+  if(!S.host){if(sec%5===0)Online.send({t:'hello',name:profile.name,coins:profile.coins});$('onlmsg').textContent=conn+' · asking host to start ('+sec+'s)';}
+  else $('onlmsg').textContent=conn+' · waiting for a friend to join ('+sec+'s). Share the code.';
+  const lim=S.host?180:45;if(sec>=lim){$('onlRetry').style.display='block';onlErr(S.host?'No one has joined yet. Check your friend typed the code, then tap Retry.':(net?'The host isn\u2019t answering. Make sure the host has this room open, check the code, then Retry.':'Can\u2019t reach the relay (ntfy.sh). Check your internet, then Retry.'));}},1000);}
+$('onlRetry').onclick=()=>{const S=Online.st,o=Online.saved(S.code);if(!o)return;Online.resume(o,{msg:onMsg,status:onlStatus});if(!o.host)Online.send({t:'hello',name:profile.name,coins:profile.coins});startWait();};
+(function(){const H=$('hostBtn').onclick,J=$('joinBtn').onclick;$('hostBtn').onclick=()=>{H();if(Online.st.on&&Online.st.seed==null)startWait();};$('joinBtn').onclick=()=>{J();if(Online.st.on&&Online.st.seed==null)startWait();};})();
+const _og=openGame;openGame=function(code){_og(code);const S=Online.st;if(S.on&&S.seed==null){if(!S.host)Online.send({t:'hello',name:profile.name,coins:profile.coins});startWait();}};
