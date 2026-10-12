@@ -28,6 +28,9 @@ function pieceTiles(rack,s,o,r,c){o=normO(o);const vert=o%2===1,rev=o>=2;
  return [0,1,2].map(j=>{const k=rev?2-j:j;return {r:vert?r+j:r,c:vert?c:c+j,color:rack[3*s+k],slot:3*s+k};});}
 // only rule: the straight 3-tile piece fits inside the board on 3 empty cells (anywhere, no touching / collinear rules)
 function validPiece(b,placed,tiles){const nb=withPlaced(b,placed);return tiles.every(t=>inb(t.r,t.c)&&!nb[t.r][t.c]&&t.color);}
+// uncommitted piece helpers: move / rotate in place against the other pieces placed this move
+function movePiece(b,rack,others,s,o,r,c){const t=pieceTiles(rack,s,o,r,c);return validPiece(b,others,t)?t:null;}
+function rotateInPlace(b,rack,others,s,o,r,c){const no=rotateO(o),t=pieceTiles(rack,s,no,r,c);return validPiece(b,others,t)?{o:no,tiles:t}:null;}
 function group(b,r,c){const col=b[r][c].color,seen=new Set(),st=[[r,c]],out=[];
  while(st.length){const [y,x]=st.pop(),k=y*N+x;if(seen.has(k))continue;seen.add(k);
   if(!inb(y,x))continue;const t=b[y][x];if(!t)continue;
@@ -67,6 +70,6 @@ function aiMove(g){const b=g.board,rack=g.racks[g.turn];let best={score:0,pl:[]}
   const sc=evaluate(b,pl).score;if(sc>best.score)best={score:sc,pl:pl.slice()};}
  if(best.score<=0)return {pl:[],boost:false};
  const boost=g.power[g.turn]>0&&(best.score>=120||isFinal(g));return {pl:best.pl,boost};}
-const api={piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
+const api={movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
 if(typeof module!=='undefined')module.exports=api;else root.Logic=api;
 })(this);

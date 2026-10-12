@@ -74,3 +74,6 @@ html,body,button,.set,.rot,#rack{touch-action:manipulation}
 #rack .set{touch-action:none}
 .rot{width:28px;height:28px;border-radius:14px;line-height:24px;font-size:15px;right:-10px;bottom:-10px;z-index:2}
 .set.spin{animation:spin .2s ease-out}@keyframes spin{from{transform:rotate(-90deg) scale(.9)}to{transform:none}}
+/* v9: uncommitted pieces glow */
+.tile.fresh{outline:none;box-shadow:0 0 0 2px #fff,0 0 8px 3px #3fa6f0,inset 0 -4px 6px #0003;animation:glow 1.2s ease-in-out infinite alternate}
+@keyframes glow{to{box-shadow:0 0 0 2px #fff,0 0 12px 5px #7cc4ff,inset 0 -4px 6px #0003}}

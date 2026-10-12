@@ -30,19 +30,23 @@ function render(){setTimeout(fit,0);const b=cur(),bd=$('board');bd.innerHTML='';
  const h=human();$('play').disabled=!h;$('recall').disabled=!h||!pieces.length;$('swap').disabled=!h||pieces.length>0;$('power').disabled=!h||g.power[g.turn]<1;}
 function tryPlace(s,r,c){if(s===null||!human()||usedSet(s)||!g.racks[g.turn][3*s])return false;const t=tilesAt(s,r,c);
  if(!L.validPiece(g.board,placed(),t)){say('Doesn\'t fit there');beep(200);return false;}
- pieces.push({s,tiles:t});sel=firstFree();beep(600);render();return true;}
+ pieces.push({s,r,c,tiles:t});sel=firstFree();beep(600);render();return true;}
 let spin=null,lastRot=0;function rotate(s){if(!human()||usedSet(s))return;const now=performance.now();if(now-lastRot<120)return;lastRot=now; // guard only against same-event double-fire
  g.orient[g.turn][s]=L.rotateO(g.orient[g.turn][s]);sel=s;spin=s;render();clearTimeout(rotate.t);rotate.t=setTimeout(()=>{spin=null;},220);}
 $('rack').addEventListener('pointerup',e=>{const rb=e.target.closest('.rot');if(rb){e.preventDefault();e.stopPropagation();rotate(+rb.dataset.s);}});
 $('rack').addEventListener('dblclick',e=>e.preventDefault());
-$('board').onclick=e=>{const t=e.target.closest('.cell');if(!t||!human())return;const r=+t.dataset.r,c=+t.dataset.c;
- const last=pieces[pieces.length-1];if(last&&last.tiles.some(q=>q.r===r&&q.c===c)){pieces.pop();sel=last.s;render();return;}tryPlace(sel,r,c);};
+$('board').onclick=e=>{if(Date.now()-noClick<500)return;const t=e.target.closest('.cell');if(!t||!human())return;const r=+t.dataset.r,c=+t.dataset.c;
+ if(pieceAt(r,c)>=0)return;tryPlace(sel,r,c);};
+function pieceAt(r,c){return pieces.findIndex(p=>p.tiles.some(q=>q.r===r&&q.c===c));}
 // drag whole piece: pointer events, no page scroll
 let drag=null;
 $('rack').addEventListener('pointerdown',e=>{if(e.target.closest('.rot'))return;const set=e.target.closest('.set');if(!set||set.classList.contains('empty')||!human())return;
  e.preventDefault();const s=+set.dataset.s,now=Date.now();
  drag={s,x0:e.clientX,y0:e.clientY,moved:false,el:null,tap:now};try{set.setPointerCapture(e.pointerId);}catch(_){}});
+$('board').addEventListener('pointerdown',e=>{const cell=e.target.closest('.cell');if(!cell||!human())return;const i=pieceAt(+cell.dataset.r,+cell.dataset.c);if(i<0)return;
+ e.preventDefault();drag={s:pieces[i].s,x0:e.clientX,y0:e.clientY,moved:false,el:null,board:pieces[i]};});
 addEventListener('pointermove',e=>{if(!drag)return;e.preventDefault();
+ if(drag.board&&!drag.moved&&Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0)>8){pieces=pieces.filter(p=>p!==drag.board);}
  if(!drag.moved&&Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0)>8){drag.moved=true;sel=drag.s;render();
   const el=document.createElement('div');const oo=L.normO(g.orient[g.turn][drag.s]);el.className='drag set '+(oo%2?'v':'h');const disp=L.pieceTiles(g.racks[g.turn],drag.s,oo,0,0);for(let j=0;j<3;j++){const d=document.createElement('div');d.className='rt big';d.innerHTML=tileHTML(disp[j].color);el.appendChild(d);}document.body.appendChild(el);drag.el=el;}
  if(!drag.moved)return;const cs=$('board').querySelector('.cell').getBoundingClientRect().width;
@@ -50,10 +54,15 @@ addEventListener('pointermove',e=>{if(!drag)return;e.preventDefault();
  const el=document.elementFromPoint(ox+cs/2,oy+cs/2),cell=el&&el.closest('#board .cell');
  const ng=cell?(()=>{const t=tilesAt(drag.s,+cell.dataset.r,+cell.dataset.c);return {tiles:t.filter(q=>q.r<8&&q.c<8),ok:L.validPiece(g.board,placed(),t),r:+cell.dataset.r,c:+cell.dataset.c};})():null;
  if(JSON.stringify(ng)!==JSON.stringify(ghost)){ghost=ng;render();}},{passive:false});
-addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;
- if(d.moved){d.el&&d.el.remove();const gh=ghost;ghost=null;if(gh)tryPlace(d.s,gh.r,gh.c);else render();return;}
+let noClick=0;addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;if(d.board||d.moved)noClick=Date.now();
+ if(d.board&&!d.moved){const p=d.board,res=L.rotateInPlace(g.board,g.racks[g.turn],pieces.filter(x=>x!==p).flatMap(x=>x.tiles),p.s,g.orient[g.turn][p.s],p.r,p.c);
+  if(res){g.orient[g.turn][p.s]=res.o;p.tiles=res.tiles;beep(700);}else{say("Doesn't fit");beep(200);}render();return;}
+ if(d.moved){d.el&&d.el.remove();const gh=ghost;ghost=null;
+  if(gh&&tryPlace(d.s,gh.r,gh.c))return;
+  if(d.board){const el=document.elementFromPoint(e.clientX,e.clientY);if(el&&el.closest('#rack')){sel=d.s;say('Returned to tray');render();return;}pieces.push(d.board);}
+  render();return;}
  if(sel===d.s)rotate(d.s);else{sel=d.s;render();}});
-addEventListener('pointercancel',()=>{if(drag){drag.el&&drag.el.remove();drag=null;ghost=null;render();}});
+addEventListener('pointercancel',()=>{if(drag){drag.el&&drag.el.remove();if(drag.board&&!pieces.includes(drag.board))pieces.push(drag.board);drag=null;ghost=null;render();}});
 document.addEventListener('touchmove',e=>{if(drag)e.preventDefault();},{passive:false});
 $('recall').onclick=()=>{pieces=[];sel=firstFree();boost=false;render();};
 $('power').onclick=()=>{boost=!boost;say(boost?'⚡ Double points this move!':'Power-up off');render();};
@@ -70,7 +79,7 @@ function finish(){const n=NAMES(),w=g.winner;
  $('msg').innerHTML=(w<0?'Tie game!':n[w]+' wins the pot!')+'<br>'+g.scores[0]+' – '+g.scores[1]+'<br>Coins: '+g.coins[0];localStorage.coins=g.coins[0];$('overlay').classList.add('show');}
 function start(mode){g=L.newGame(mode);g.coins[0]=+(localStorage.coins||729);pieces=[];boost=false;busy=false;sel=firstFree();$('overlay').classList.remove('show');render();}
 $('vsAI').onclick=()=>start('ai');$('vsP').onclick=()=>start('pvp');$('menuBtn').onclick=()=>$('overlay').classList.add('show');
-$('infoBtn').onclick=()=>say('Drag a 3-tile piece · tap it again or ↻ to rotate · place anywhere it fits');
+$('infoBtn').onclick=()=>say('Drag a 3-tile piece · tap it again or ↻ to rotate · placed pieces stay movable until PLAY · place anywhere it fits');
 function fit(){const bd=$('board'),app=$('app');let used=0;[...app.children].forEach(c=>{if(c!==bd&&c.id!=='overlay')used+=c.getBoundingClientRect().height;});
  const st=getComputedStyle(app),avail=app.clientHeight-parseFloat(st.paddingTop)-used-4;bd.style.width=Math.max(120,Math.min(app.clientWidth,avail))+'px';}
 addEventListener('resize',fit);

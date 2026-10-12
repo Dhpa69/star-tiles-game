@@ -48,5 +48,14 @@ a.deepEqual(seen,['rgb','rgvbv','bgr','bgvrv'].map((x,i)=>i==1?'rgvbv':x).length
 a.deepEqual(L.pieceTiles(RG,0,0,0,0).map(q=>q.color),['red','green','blue']);a.deepEqual(L.pieceTiles(RG,0,1,0,0).map(q=>[q.r,q.c,q.color]),[[0,0,'red'],[1,0,'green'],[2,0,'blue']]);
 a.deepEqual(L.pieceTiles(RG,0,2,0,0).map(q=>[q.r,q.c,q.color]),[[0,0,'blue'],[0,1,'green'],[0,2,'red']]);a.deepEqual(L.pieceTiles(RG,0,3,0,0).map(q=>[q.r,q.c,q.color]),[[0,0,'blue'],[1,0,'green'],[2,0,'red']]);
 a.equal(o,0);a.equal(L.rotateO(3),0);a.deepEqual(L.pieceTiles(RG,0,2,0,0).map(q=>q.slot),[2,1,0]);
+// movable uncommitted pieces
+{const B=empty();B[0][3]={color:'red'};const RR=['red','green','blue','pink','pink','pink','x','x','x'];
+ const p0=L.pieceTiles(RR,0,0,5,0),other=L.pieceTiles(RR,1,0,7,0);
+ a.deepEqual(L.movePiece(B,RR,other,0,0,2,2).map(q=>[q.r,q.c]),[[2,2],[2,3],[2,4]]);
+ a.equal(L.movePiece(B,RR,other,0,0,7,1),null); a.equal(L.movePiece(B,RR,[],0,0,0,2),null); a.equal(L.movePiece(B,RR,[],0,0,4,6),null);
+ const r1=L.rotateInPlace(B,RR,[],0,0,4,0);a.ok(r1&&r1.o===1);a.deepEqual(r1.tiles.map(q=>[q.r,q.c,q.color]),[[4,0,'red'],[5,0,'green'],[6,0,'blue']]);
+ a.equal(L.rotateInPlace(B,RR,other,0,0,5,0),null); // would hit piece at row 7 a.equal(L.rotateInPlace(B,RR,L.pieceTiles(RR,1,0,6,0),0,0,5,0),null); // blocked -> doesn't fit
+ const r2=L.rotateInPlace(B,RR,[],0,1,4,4);a.ok(r2.o===2&&r2.tiles.map(q=>q.color).join()=='blue,green,red');
+ a.equal(L.rotateInPlace(B,RR,[],0,0,6,7),null);} // vertical would leave board
 let n=0;const t0=Date.now();while(!g.over){const m=L.aiMove(g);a.ok(m.pl.length%3===0);L.commit(g,m.pl,m.boost);n++;}
 a.equal(n,20);a.deepEqual(g.moves,[10,10]);console.log('ok',g.scores,g.winner,(Date.now()-t0)+'ms');
