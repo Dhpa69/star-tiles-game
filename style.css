@@ -109,3 +109,18 @@ html,body,button,.set,.rot,#rack{touch-action:manipulation}
 #onl{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:50}#onl.show{display:flex}
 .code{font-size:40px;font-weight:900;letter-spacing:6px;color:#1b3f8f;margin:8px 0}
 .card{max-height:92vh;overflow:auto}
+/* v15: preview in header, very visible will-score ring, bubble pops */
+#prev{display:none!important}
+#pot{position:relative;display:inline-flex;flex-direction:column;align-items:center;line-height:1.05}
+#potprev{font-size:13px;font-weight:900;border-radius:9px;padding:0 7px;margin-top:1px}#potprev:empty{display:none}
+#potprev.hot{background:#fff;color:#e8590c;animation:pp .6s ease-in-out infinite alternate}#potprev.zero{background:#ffffff55;color:#fff}
+@keyframes pp{to{transform:scale(1.12)}}
+.cell.will{z-index:3}
+.cell.will .tile{animation:will2 .5s ease-in-out infinite alternate;outline:4px solid #00f0ff;outline-offset:1px}
+@keyframes will2{from{box-shadow:0 0 0 2px #fff,0 0 10px 4px #00f0ff;transform:scale(1)}to{box-shadow:0 0 0 4px #fff,0 0 22px 10px #00f0ff;transform:scale(1.08)}}
+.tile.pop{animation:bub .6s cubic-bezier(.2,1.6,.4,1) forwards}
+@keyframes bub{0%{transform:scale(1)}35%{transform:scale(1.45);filter:brightness(1.6)}60%{transform:scale(1.1);opacity:.9}100%{transform:scale(0);opacity:0}}
+.prt{position:absolute;left:50%;top:50%;width:9px;height:9px;margin:-4.5px;border-radius:50%;pointer-events:none;z-index:9;animation:prt .7s ease-out forwards;box-shadow:0 0 4px #fff}
+@keyframes prt{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(.2);opacity:0}}
+.prt.star{background:#ffd23a}.cell{overflow:visible}
+.btn.mute{width:100%;margin-top:6px;background:linear-gradient(#7d8b9c,#5a6676);border-color:#46505c}
