@@ -19,18 +19,25 @@ a.ok(L.canPlace(empty(),0,0)); a.ok(!L.evaluate(b4,[{r:0,c:0,color:'red'}]).boar
 // straight line rule
 a.ok(L.inLine([{r:2,c:3}],2,6));a.ok(L.inLine([{r:2,c:3}],5,3));a.ok(!L.inLine([{r:2,c:3}],3,4));
 a.ok(!L.inLine([{r:2,c:3},{r:2,c:4}],3,3));a.ok(L.validNext(b,[{r:3,c:5,color:'red'}],3,6));a.ok(!L.validNext(b,[{r:3,c:5,color:'red'}],2,4));
-const z0=L.newGame('ai',rng);a.throws(()=>L.commit(z0,[{r:2,c:3,color:'red'},{r:5,c:4,color:'red'}]));
+
 // zero-tile move + 9-tile refill
 const z=L.newGame('ai',rng),pot=z.pot;const kept=z.racks[0].slice(3);
-z.board[2][3]=null;L.commit(z,[{r:2,c:3,color:z.racks[0][0],slot:0},{r:2,c:4,color:z.racks[0][1],slot:1}]);
-a.equal(z.racks[0].filter(x=>x).length,7);a.deepEqual(z.racks[0].slice(3),kept);
+z.board=empty();z.board[3][3]={color:'x'};const pc=L.pieceTiles(z.racks[0],0,'h',2,2);a.ok(L.validPiece(z.board,[],pc));L.commit(z,pc);
+a.equal(z.racks[0].filter(x=>x).length,6);a.deepEqual(z.racks[0].slice(3),kept);
 L.commit(z,[]);a.ok(z.turn===0);a.equal(z.racks[0].filter(x=>x).length,9);a.deepEqual(z.racks[0].slice(3),kept);a.equal(z.moves[1],1);
 // bot passes when nothing scores; bot moves are straight lines
 const q=L.newGame('ai',rng);q.board=empty();q.board[3][3]={color:'red'};q.board[3][4]={color:'green'};q.racks[0]=['yellow','blue','pink','yellow','blue','pink','orange',null,null];
 a.deepEqual(L.aiMove(q).pl,[]);
 const q2=L.newGame('ai',rng);q2.board=empty();q2.board[3][3]={color:'red'};q2.racks[0]=['red','red','red','blue','blue','blue','green','green','green'];
-const m2=L.aiMove(q2);a.ok(m2.pl.length>=2&&L.isLine(m2.pl));
+const m2=L.aiMove(q2);a.ok(m2.pl.length%3===0&&m2.pl.length>=3);
+// pieces: 3 connected cells, rotate, bounds, emptiness, touch, collinearity
+const R=['red','blue','star','green','green','green','pink','pink','pink'],pb=empty();pb[3][3]={color:'red'};
+const hz=L.pieceTiles(R,0,'h',2,3),vt=L.pieceTiles(R,0,'v',4,3);a.deepEqual(hz.map(t=>[t.r,t.c]),[[2,3],[2,4],[2,5]]);a.deepEqual(vt.map(t=>[t.r,t.c]),[[4,3],[5,3],[6,3]]);
+a.ok(L.validPiece(pb,[],hz)&&L.validPiece(pb,[],vt));a.ok(!L.validPiece(pb,[],L.pieceTiles(R,0,'h',2,6)));a.ok(!L.validPiece(pb,[],L.pieceTiles(R,0,'h',3,2)));
+a.ok(L.validPiece(pb,[],L.pieceTiles(R,0,'h',0,0))); // no touching neededa.ok(L.validPiece(empty(),[],L.pieceTiles(R,0,'v',0,0)));
+a.ok(L.validPiece(pb,hz,L.pieceTiles(R,1,'h',1,3)));a.ok(L.validPiece(pb,vt,L.pieceTiles(R,1,'h',7,4)));a.ok(!L.validPiece(pb,hz,L.pieceTiles(R,1,'v',1,4))); // independent pieces; overlap rejected
+const far=L.newGame('ai',rng);far.board=empty();far.board[3][3]={color:'red'};const p1=L.pieceTiles(far.racks[0],0,'h',0,0),p2=L.pieceTiles(far.racks[0],1,'v',5,7);a.ok(L.validPiece(far.board,p1,p2));L.commit(far,p1.concat(p2));a.equal(far.racks[0].filter(x=>x).length,3);
 // name
 const all=['app.js','index.html','logic.js'].map(f=>fs.readFileSync(__dirname+'/'+f,'utf8')).join('');a.ok(!/dimble/i.test(all)&&/COMPUTER/.test(all));
-let n=0;const t0=Date.now();while(!g.over){const m=L.aiMove(g);a.ok(L.isLine(m.pl));L.commit(g,m.pl,m.boost);n++;}
+let n=0;const t0=Date.now();while(!g.over){const m=L.aiMove(g);a.ok(m.pl.length%3===0);L.commit(g,m.pl,m.boost);n++;}
 a.equal(n,20);a.deepEqual(g.moves,[10,10]);console.log('ok',g.scores,g.winner,(Date.now()-t0)+'ms');

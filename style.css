@@ -56,3 +56,15 @@ footer{margin-top:auto}
 #board{width:min(100%,calc(100dvh - 252px - env(safe-area-inset-top) - env(safe-area-inset-bottom)))}
 .drag{width:44px;height:44px}
 .tile.pop{animation:pop .45s ease-out forwards}@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(0);opacity:0}}
+/* v6: connected 3-tile pieces */
+#rack,#board{touch-action:none}
+#rack{align-items:center;min-height:calc(var(--rt,30px)*3 + 30px)}
+.set{position:relative;gap:0;padding:5px;cursor:grab}.set.v{flex-direction:column}.set.empty{opacity:.35}
+.set .rt{--t:30px;border-radius:0;background:transparent}.set.h .rt:first-child{border-radius:6px 0 0 6px}
+.set.sel{outline:3px solid #1b3f8f;outline-offset:1px}.set .rt .tile{inset:1px}
+.rot{position:absolute;right:-8px;bottom:-8px;width:22px;height:22px;border-radius:11px;border:2px solid #fff;background:#1663c7;color:#fff;font-size:13px;padding:0;line-height:18px}
+.drag.set{position:fixed;padding:0;background:none;box-shadow:none;width:auto;height:auto;opacity:.85;pointer-events:none;z-index:30}
+.drag .rt{width:var(--t);height:var(--t)}
+.cell.gok{background:#9be7a6;outline:2px solid #23a83a}.cell.gbad{background:#f4a3a3;outline:2px solid #d22}
+#app{overscroll-behavior:none}
+.drag.set .rt.big{width:var(--dt,40px);height:var(--dt,40px)}.drag.set .rt.big .tile{inset:2px}
