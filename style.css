@@ -103,3 +103,9 @@ html,body,button,.set,.rot,#rack{touch-action:manipulation}
 .cell.will .tile{animation:will .7s ease-in-out infinite alternate}
 @keyframes will{from{box-shadow:0 0 0 2px #fff,0 0 6px 2px #ffb000}to{box-shadow:0 0 0 3px #ffd84a,0 0 14px 6px #ff9000}}
 .diff button{font-size:12px}
+/* v14 online */
+.online{margin-top:10px;border-top:1px solid #dde3ea;padding-top:6px}.joinrow{display:flex;gap:6px;margin-top:8px}
+.joinrow input{flex:1;font-size:18px;letter-spacing:3px;text-transform:uppercase;text-align:center;padding:8px;border:2px solid #9fb0c4;border-radius:8px}
+#onl{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:50}#onl.show{display:flex}
+.code{font-size:40px;font-weight:900;letter-spacing:6px;color:#1b3f8f;margin:8px 0}
+.card{max-height:92vh;overflow:auto}
