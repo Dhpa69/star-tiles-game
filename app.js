@@ -56,7 +56,7 @@ function render(){setTimeout(fit,0);clearTimeout(render.sv);render.sv=setTimeout
  $('n0').textContent=NAMES()[0];$('n1').textContent=NAMES()[1];$('n0').className=g.turn===0?'on':'';$('n1').className=g.turn===1?'on':'';
  const mv=Math.min(g.moves[g.turn]+1,10),fin=L.isFinal(g)&&!g.over;$('banner').textContent=g.over?'GAME OVER':(fin?'FINAL MOVE!':'MOVE '+mv+' / 10');$('banner').className=fin?'final':'';
  const fr=g.power[g.turn];const bf=bx();$('badge').textContent=bf>1?'x'+bf:(fr>0?fr:'50🪙');$('power').className='btn'+(boost?' on':'');const cw=g.mode==='pvp'?g.turn:meIdx();$('coinN').textContent=g.coins[cw];
- $('swapc').textContent=g.swaps[g.turn]>0?'FREE':'50🪙';if(profile.coins!==g.coins[meIdx()]){profile.coins=g.coins[meIdx()];saveProfile();}
+ $('swapc').textContent=g.swaps[g.turn]>0?'FREE':'50🪙';if(!isOn()&&profile.coins!==g.coins[meIdx()]){profile.coins=g.coins[meIdx()];saveProfile();}
  const h=human();$('play').disabled=!h;$('recall').disabled=!h||!pieces.length;$('swap').disabled=!h||firstFree()==null||!L.canSwap(g);$('power').disabled=!h||(!boost&&!L.canPower(g)&&L.charges(g)<1);}
 function bn(){return boost?L.norm(boost):{d:0,t:0};}function bx(){const b=bn();return Math.pow(2,b.d)*Math.pow(3,b.t);}
 function tryPlace(s,r,c){if(s===null||!human()||usedSet(s)||!g.racks[g.turn][3*s])return false;const t=tilesAt(s,r,c);
@@ -124,7 +124,7 @@ function next(){sel=g.over?null:firstFree();render();if(g.over)return finish();a
  if(g.turn===1){busy=true;render();setTimeout(()=>{const m=L.aiPlan(g,profile.difficulty);if(m.swap&&L.swap(g,0)){busy=false;say('Computer swapped a piece');next();return;}if(m.blast){boom(m.blast);say('Computer used '+(m.blast.type==='bomb'?'💣 Bomb':'✚ Cross Blast'));}pieces=[];for(let i=0;i<m.pl.length;i+=3)pieces.push({s:Math.floor(m.pl[i].slot/3),tiles:m.pl.slice(i,i+3)});render();
   setTimeout(()=>{const res=L.commit(g,placed(),m.boost);if(m.boost){const b=L.norm(m.boost);say('Computer ⚡ x'+Math.pow(2,b.d)*Math.pow(3,b.t));}pop(res);markOwner(1);pieces=[];busy=false;say(res.score?'Computer +'+res.score:'Computer passes');next();},800);},500);}}
 function finish(){clearSave();const n=NAMES(),w=g.winner,me=meIdx();
- $('result').innerHTML=(w<0?'Tie game!':n[w]+' wins!')+'<br>'+g.scores[0]+' – '+g.scores[1]+'<br>'+(g.mode!=='pvp'&&w===me?'+10 coins! ':'')+'Coins: '+g.coins[me];profile.coins=g.coins[me];profile.games++;if(w===me)profile.wins++;if(isOn()){Online.leave();Online.clear();}saveProfile();showProfile();$('overlay').classList.add('show');}
+ $('result').innerHTML=(w<0?'Tie game!':n[w]+' wins!')+'<br>'+g.scores[0]+' – '+g.scores[1]+'<br>'+(g.mode!=='pvp'&&w===me?'+10 coins! ':'')+'Coins: '+g.coins[me];profile.coins=g.coins[me];profile.games++;if(w===me)profile.wins++;if(isOn()){const S=Online.st,o=Online.saved(S.code);if(o&&o.counted){profile.games--;if(w===me)profile.wins--;}else profile.coins=Math.max(0,profile.coins+g.coins[me]-(g.coinsStart||g.coins)[me]);$('result').innerHTML=$('result').innerHTML.replace(/Coins: \d+/,'Coins: '+profile.coins);Online.persist({over:true,counted:true,winner:w,scores:g.scores.slice()});Online.leave();renderGames();}saveProfile();showProfile();$('overlay').classList.add('show');}
 function start(mode){$('result').innerHTML='';const nm=$('pname').value.trim();if(!nm){$('pname').focus();say('Enter your name first');return;}profile.name=nm;saveProfile();clearSave();g=L.newGame(mode);g.coins[0]=profile.coins;pieces=[];boost=false;busy=false;sel=firstFree();g._live=true;$('overlay').classList.remove('show');render();autosave();}
 // ---- online rooms ----
 function applySilent(a){if(a.type==='commit'){const p=g.turn;L.commit(g,a.pl,a.boost);markOwner(p);}else if(a.type==='swap')L.swap(g,a.s);else if(a.type==='blast')L.blast(g,a.b,a.r,a.c);}
@@ -135,8 +135,8 @@ function remoteAct(a){const p=g.turn;
  next();}
 const pending=[];
 function onMsg(d){const S=Online.st;
- if(d.t==='hello'&&S.host&&!g.started){const seed=Math.floor(Math.random()*2**31);const names=[profile.name,d.name],coins=[profile.coins,+d.coins||100];Online.start(seed,names,coins);beginOnline(seed,names,coins);}
- else if(d.t==='start'&&!S.host&&!(isOn()&&g.started))beginOnline(d.seed,d.names,d.coins);
+ if(d.t==='hello'&&S.host&&S.seed==null){const seed=Math.floor(Math.random()*2**31);const names=[profile.name,d.name],coins=[profile.coins,+d.coins||100];Online.start(seed,names,coins);beginOnline(seed,names,coins);}
+ else if(d.t==='start'&&!S.host&&S.seed==null)beginOnline(d.seed,d.names,d.coins);
  else if(d.t==='act'){if(d.n<S.applied||!isOn())return;if(!pending.some(x=>x.n===d.n))pending.push(d);pending.sort((x,y)=>x.n-y.n);
   while(pending.length&&pending[0].n<S.applied)pending.shift();
   while(pending.length&&pending[0].n===S.applied){const x=pending.shift();Online.record(x.a);remoteAct(x.a);}
@@ -144,31 +144,36 @@ function onMsg(d){const S=Online.st;
  else if(d._old&&d.t!=='act'&&d.t!=='start'&&d.t!=='hello')return;
  else if(d.t==='need'){Online.resend(d.from);}
  else if(d.t==='back'||d.t==='ping'){if(d.t==='back')say(NAMES()[1-meIdx()]+' is back');if(typeof d.have==='number'&&d.have<S.applied)Online.resend(d.have);if(typeof d.have==='number'&&d.have>S.applied)Online.send({t:'need',from:S.applied});updOnl();}
- else if(d.t==='away'){S.lastSeen=0;updOnl();}}
+ else if(d.t==='away'){S.lastSeen=0;updOnl();}
+ else if(d.t==='rematch'&&d.code){Online.persist({rematch:d.code});say('Rematch offered! See My online games');}
+ renderGames();}
 function updOnl(){const el=$('ostat');if(!isOn()||g.over){el.className='';return;}const away=Date.now()-Online.st.lastSeen>45000;el.textContent=away?'⚠ '+NAMES()[1-meIdx()]+' away / reconnecting…':'🌐 Online · room '+Online.st.code;el.className=away?'show away':'show';}
 setInterval(()=>{if(isOn()&&!g.over){if(document.visibilityState==='visible')Online.ping();updOnl();}},25000);
 setInterval(()=>{if(isOn())updOnl();},5000);
 document.addEventListener('visibilitychange',()=>{if(!isOn())return;if(document.visibilityState==='visible'){Online.ping('back');}else Online.ping('away');});
-function beginOnline(seed,names,coins,log){g=L.newGame('pvp',Online.mulberry(seed));g.mode='online';g.names=names;g.coins=coins.slice();g.started=true;Online.setGame(seed,names,coins);(log||[]).forEach(applySilent);
+function beginOnline(seed,names,coins,log){pending.length=0;g=L.newGame('pvp',Online.mulberry(seed));g.mode='online';g.names=names;g.coins=coins.slice();g.coinsStart=coins.slice();g.started=true;Online.setGame(seed,names,coins);(log||[]).forEach(applySilent);
  pieces=[];boost=false;busy=false;sel=firstFree();$('overlay').classList.remove('show');$('onl').classList.remove('show');render();updOnl();say(g.turn===meIdx()?'Your turn!':'Waiting for '+NAMES()[g.turn]+'…');}
 const onlStatus=t=>{$('onlmsg').textContent=t;if(isOn()&&t){$('ostat').textContent='⚠ '+t;$('ostat').className='show away';}else if(isOn())updOnl();};
 $('hostBtn').onclick=()=>{const nm=$('pname').value.trim();if(!nm){$('pname').focus();say('Enter your name first');return;}profile.name=nm;saveProfile();
  const code=Online.host(nm,profile.coins,{msg:onMsg,status:onlStatus});$('onl').classList.add('show');$('onlcode').textContent=code;onlStatus('Share this code. Waiting for a friend to join…');};
 $('joinBtn').onclick=()=>{const nm=$('pname').value.trim();if(!nm){$('pname').focus();say('Enter your name first');return;}profile.name=nm;saveProfile();
  const code=$('joinCode').value.trim().toUpperCase();if(code.length<4){say('Enter the room code');return;}
- Online.join(code,nm,profile.coins,{msg:onMsg,status:onlStatus});$('onl').classList.add('show');$('onlcode').textContent=code;onlStatus('Joining room…');};
-$('onlCancel').onclick=()=>{Online.leave();$('onl').classList.remove('show');};
+ joinRoom(code);};
+function joinRoom(code){const nm=profile.name;if(Online.saved(code)&&!Online.saved(code).over){openGame(code);return;}Online.join(code,nm,profile.coins,{msg:onMsg,status:onlStatus});$('overlay').classList.remove('show');$('onl').classList.add('show');$('onlcode').textContent=code;onlStatus('Joining room…');renderGames();}
+$('onlCancel').onclick=()=>{Online.leave();$('onl').classList.remove('show');renderGames();say('Room kept in My online games');};
 // ---- autosave / resume (local games only) ----
 const SKEY='startiles.save';
 function autosave(){if(!g||!g.started&&g.mode!=='online'&&!g._live)return;if(g.mode==='online'||g.over)return;
  try{const {rng,...rest}=g;localStorage.setItem(SKEY,JSON.stringify({v:1,savedAt:Date.now(),g:rest,pieces,difficulty:profile.difficulty}));}catch(e){}}
 function clearSave(){localStorage.removeItem(SKEY);showResume();}
 function loadSave(){try{return JSON.parse(localStorage.getItem(SKEY));}catch(e){return null;}}
-function showResume(){const os=Online.saved(),ob=$('onlResume');if(ob){ob.style.display=os&&os.seed!=null?'block':'none';if(os)ob.textContent='🌐 Continue online game (room '+os.code+')';}const s=loadSave(),b=$('resumeBtn');if(!b)return;b.style.display=s&&s.g&&!s.g.over?'block':'none';
+function showResume(){const ob=$('onlResume');if(ob)ob.style.display='none';renderGames();const s=loadSave(),b=$('resumeBtn');if(!b)return;b.style.display=s&&s.g&&!s.g.over?'block':'none';
  if(s&&s.g)b.textContent=(g&&g._live&&!g.over?'▶ Continue game (':'▶ Resume game (')+(s.g.mode==='ai'?'vs COMPUTER':'Pass & Play')+', move '+Math.min(10,s.g.moves[0]+1)+'/10)';}
-$('onlResume').onclick=()=>{const s=Online.saved();if(!s)return;$('overlay').classList.remove('show');
+$('onlResume').onclick=()=>openGame((Online.saved()||{}).code);
+function openGame(code){const s=Online.saved(code);if(!s)return;if(s.rematch&&s.over){joinRoom(s.rematch);return;}
+ if(s.seed==null){Online.resume(s,{msg:onMsg,status:onlStatus});$('onl').classList.add('show');$('onlcode').textContent=s.code;onlStatus(s.host?'Share this code. Waiting for a friend to join…':'Joining room…');return;}$('overlay').classList.remove('show');
  if(isOn()&&Online.st.on&&Online.st.code===s.code){render();return;} // still connected: just close the menu
- Online.resume(s,{msg:onMsg,status:onlStatus});beginOnline(s.seed,s.names,s.coins,s.log);updOnl();say('Rejoined room '+s.code+' – catching up…');};
+ Online.resume(s,{msg:onMsg,status:onlStatus});beginOnline(s.seed,s.names,s.coins,s.log);updOnl();say((s.over?'Finished game ':'Rejoined room ')+s.code+(s.over?'':' – catching up…'));if(g.over){$('result').innerHTML=(g.winner<0?'Tie game!':NAMES()[g.winner]+' wins!')+'<br>'+g.scores[0]+' – '+g.scores[1];Online.leave();$('overlay').classList.add('show');renderGames();}}
 $('resumeBtn').onclick=()=>{const s=loadSave();if(!s)return;g=Object.assign(s.g,{rng:Math.random,_live:true});if(s.difficulty)profile.difficulty=s.difficulty;
  pieces=(s.pieces||[]).filter(p=>p&&p.tiles);boost=false;busy=false;aim=null;$('overlay').classList.remove('show');sel=firstFree();
  if(g.mode==='ai'&&g.turn===1){pieces=[];next();}else render();say('Game resumed');};
@@ -184,3 +189,35 @@ $('muteBtn').onclick=()=>{profile.muted=!profile.muted;saveProfile();showProfile
 $('diff').onclick=e=>{const b=e.target.closest('[data-d]');if(!b)return;profile.difficulty=b.dataset.d;saveProfile();showProfile();if(g)render();};
 $('pname').onchange=()=>{profile.name=$('pname').value.trim();saveProfile();if(g)render();};
 g=L.newGame('ai');g.coins[0]=profile.coins;render();showProfile();showResume();$('overlay').classList.add('show');if(!profile.name)setTimeout(()=>$('pname').focus(),300);
+
+// ---- v22: My online games (many rooms at once, Words-With-Friends style) ----
+var gcache;
+function replayGame(o){gcache=gcache||{};if(o.seed==null)return null;const k=o.code+':'+o.seed+':'+(o.log||[]).length;if(gcache[o.code]&&gcache[o.code].k===k)return gcache[o.code].G;
+ const G=L.newGame('pvp',Online.mulberry(o.seed));G.coins=(o.coins||[100,100]).slice();for(const a of o.log||[]){try{if(a.type==='commit')L.commit(G,a.pl,a.boost);else if(a.type==='swap')L.swap(G,a.s);else if(a.type==='blast')L.blast(G,a.b,a.r,a.c);}catch(e){}}
+ gcache[o.code]={k,G};return G;}
+function ago(t){if(!t)return '';const s=(Date.now()-t)/1000;return s<60?'just now':s<3600?Math.floor(s/60)+'m ago':s<86400?Math.floor(s/3600)+'h ago':Math.floor(s/86400)+'d ago';}
+function gameRows(){const m=Online.all(),rows=[];for(const code in m){const o=m[code],G=replayGame(o),me=o.me|0;
+ let st,rank;if(!G){st=o.host?'Waiting for friend':'Joining…';rank=2;}else if(G.over||o.over){st=G.winner<0?'Tie':(G.winner===me?'You won':'You lost');rank=3;}else if(G.turn===me){st='Your turn';rank=0;}else{st='Their turn';rank=1;}
+ rows.push({o,G,me,st,rank,opp:o.names?o.names[1-me]:'—',score:G?G.scores[me]+' – '+G.scores[1-me]:''});}
+ rows.sort((a,b)=>a.rank-b.rank||(b.o.lastAct||0)-(a.o.lastAct||0));return rows;}
+function renderGames(){const el=$('mygames');if(!el)return;const rows=gameRows();const yours=rows.filter(r=>r.rank===0).length;
+ $('menuBtn').dataset.n=yours||'';document.title=(yours?'('+yours+') ':'')+'Star Tiles';
+ if(!rows.length){el.innerHTML='';el.style.display='none';return;}el.style.display='block';
+ el.innerHTML='<div class="mgh">🌐 My online games'+(yours?' <b class="mgn">'+yours+'</b>':'')+'</div>'+rows.map(r=>{const cls=['yt','tt','wt','ov'][r.rank];
+  return '<div class="mg '+cls+'" data-code="'+r.o.code+'"><div class="mgm"><b>vs '+esc(r.opp)+'</b><span class="mgb">'+r.st+'</span><br><small>Room '+r.o.code+(r.score?' · '+r.score:'')+' · '+ago(r.o.lastAct)+'</small></div>'+
+  (r.rank===3?(r.o.rematch?'<button class="mga" data-a="join">Join rematch</button>':'<button class="mga" data-a="rematch">Rematch</button>')+'<button class="mga x" data-a="rm">✕</button>':'')+'</div>';}).join('');}
+function esc(t){return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+document.addEventListener('click',e=>{const row=e.target.closest&&e.target.closest('.mg');if(!row)return;const code=row.dataset.code,a=e.target.dataset&&e.target.dataset.a,o=Online.saved(code);if(!o)return;
+ if(a==='rm'){Online.clear(code);renderGames();return;}
+ if(a==='rematch'){const nm=profile.name||$('pname').value.trim();if(!nm){say('Enter your name first');return;}const nc=Online.host(nm,profile.coins,{msg:onMsg,status:onlStatus});Online.sendTo(code,o.id,{t:'rematch',code:nc});
+  $('overlay').classList.remove('show');$('onl').classList.add('show');$('onlcode').textContent=nc;onlStatus('Rematch room – waiting for '+(o.names?o.names[1-o.me]:'friend')+'…');return;}
+ if(a==='join'){joinRoom(o.rematch);return;}
+ openGame(code);});
+// background poll: rooms you're not looking at; starts hosted games when a friend joins; turn notification
+function onPolled(o){const me=o.me|0;
+ if(o.host&&o.seed==null&&o.helloFrom){const seed=Math.floor(Math.random()*2**31),names=[profile.name,o.helloFrom.name],coins=[profile.coins,+o.helloFrom.coins||100];
+  Online.upd(o.code,x=>{x.seed=seed;x.names=names;x.coins=coins;delete x.helloFrom;x.lastAct=Date.now();});Online.sendTo(o.code,o.id,{t:'start',seed,names,coins});o=Online.saved(o.code);}
+ const G=replayGame(o);if(G&&!G.over&&G.turn===me&&o.notified!==o.log.length){Online.upd(o.code,x=>x.notified=x.log.length);if(!profile.muted)SFX.chime(120);say('🔔 Your turn vs '+(o.names?o.names[1-me]:'friend'));}
+ if(o.rematch&&o.over&&!o.rmNote){Online.upd(o.code,x=>x.rmNote=1);say('🔁 '+(o.names?o.names[1-me]:'Friend')+' wants a rematch');}
+ renderGames();}
+Online.pollAll(onPolled);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')Online.pollAll(onPolled);});addEventListener('focus',()=>Online.pollAll(onPolled));

@@ -148,3 +148,13 @@ html,body{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;overscro
 #potprev,#potprev:empty{visibility:visible!important;font-size:22px;line-height:24px;min-height:24px;background:none!important;color:#fff;animation:none}
 #potprev.hot{color:#fff;text-shadow:0 0 6px #fff8}
 #pot{width:128px;min-width:128px;max-width:128px}#potprev{max-width:124px}
+
+/* v22 My online games */
+#mygames{margin:6px 0 10px;text-align:left;max-height:38vh;overflow-y:auto;touch-action:pan-y!important}
+.mgh{font-weight:900;color:#1b3f8f;margin:2px 0 4px}.mgn{background:#e8590c;color:#fff;border-radius:9px;padding:0 7px}
+.mg{display:flex;align-items:center;gap:6px;background:#fff;border-radius:10px;padding:7px 9px;margin:5px 0;border:2px solid #cdd6e0;cursor:pointer}
+.mg.yt{border-color:#2f9e44;background:#ebfbee}.mg.ov{opacity:.85}.mgm{flex:1;min-width:0}.mgm small{color:#556}
+.mgb{margin-left:6px;font-size:11px;font-weight:900;border-radius:8px;padding:1px 6px;background:#adb5bd;color:#fff}
+.yt .mgb{background:#2f9e44}.tt .mgb{background:#1c7ed6}.wt .mgb{background:#f59f00}
+.mga{border:0;border-radius:8px;background:#1c7ed6;color:#fff;font-weight:800;padding:6px 8px}.mga.x{background:#c92a2a}
+#menuBtn{position:relative}#menuBtn[data-n]:not([data-n=""])::after{content:attr(data-n);position:absolute;top:-6px;right:-6px;background:#e03131;color:#fff;font-size:12px;font-weight:900;border-radius:10px;padding:1px 6px}
