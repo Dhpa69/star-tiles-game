@@ -124,3 +124,4 @@ html,body,button,.set,.rot,#rack{touch-action:manipulation}
 @keyframes prt{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(.2);opacity:0}}
 .prt.star{background:#ffd23a}.cell{overflow:visible}
 .btn.mute{width:100%;margin-top:6px;background:linear-gradient(#7d8b9c,#5a6676);border-color:#46505c}
+.btn.resume{background:linear-gradient(#5be36a,#0e9c25);border-color:#0a6b1a}
