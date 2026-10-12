@@ -1,7 +1,7 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>Star Tiles</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="theme-color" content="#1b3f8f">
-<link rel="stylesheet" href="style.css"></head><body>
+<link rel="stylesheet" href="style.css?v=7"></head><body>
 <div id="app">
 <header><button class="btn sq" id="menuBtn">👥</button>
 <div id="hud"><div class="names"><span id="n0" class="p0">DHAVAL P</span><span class="vs">·VS·</span><span id="n1">COMPUTER</span></div>
@@ -15,6 +15,10 @@
 <div id="coins">YOUR COINS:<br><b>🪙 <span id="coinN">729</span></b></div>
 <button class="btn" id="swap">⇄<br>SWAP</button><button class="btn" id="play">▶<br>PLAY</button></footer>
 <div id="overlay" class="show"><div class="card"><h1>⭐ Star Tiles</h1><p id="msg">It takes 3 to score: connect 3+ same-color tiles to score and clear them. Stars from your rack are wild and permanent. Drag your 3-tile pieces onto the board (tap again or ↻ to rotate). Place 0–3 pieces anywhere they fit on empty squares, then PLAY. 10 moves each — biggest score takes the pot!</p>
-<button class="btn big" id="vsAI">Play vs COMPUTER</button><button class="btn big" id="vsP">Pass &amp; Play (2 players)</button></div></div>
-</div><script src="logic.js"></script><script src="app.js"></script>
-<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');</script></body></html>
+<button class="btn big" id="vsAI">Play vs COMPUTER</button><button class="btn big" id="vsP">Pass &amp; Play (2 players)</button><div id="ver">v7</div></div></div>
+</div><script src="logic.js?v=7"></script><script src="app.js?v=7"></script>
+<script>
+if('serviceWorker'in navigator){let reloaded=false;const had=!!navigator.serviceWorker.controller;
+ navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloaded||!had)return;reloaded=true;location.reload();});
+ navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{reg.update();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reg.update();});});}
+</script></body></html>

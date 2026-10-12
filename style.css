@@ -68,3 +68,4 @@ footer{margin-top:auto}
 .cell.gok{background:#9be7a6;outline:2px solid #23a83a}.cell.gbad{background:#f4a3a3;outline:2px solid #d22}
 #app{overscroll-behavior:none}
 .drag.set .rt.big{width:var(--dt,40px);height:var(--dt,40px)}.drag.set .rt.big .tile{inset:2px}
+#ver{margin-top:10px;font-size:12px;color:#7a8592;font-weight:700}
