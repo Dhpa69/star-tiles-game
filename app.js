@@ -16,6 +16,7 @@ function render(){setTimeout(fit,0);const b=cur(),bd=$('board');bd.innerHTML='';
   if(t){const e=document.createElement('div');if(t.star){e.className='tile star '+(t.fresh?'fresh':t.owner===0?'mine':'theirs');e.innerHTML='<span>⭐</span>'+(t.mult>1&&!t.fresh?'<em>x'+t.mult+'</em>':'');}
    else e.className='tile '+t.color+(t.fresh?' fresh':'');d.appendChild(e);d.className='cell';}
   else if(pops.some(q=>q.r===r&&q.c===c)){const q=pops.find(q=>q.r===r&&q.c===c),e=document.createElement('div');e.className='tile pop '+q.color;d.appendChild(e);}
+  const pi=pieceAt(r,c);if(pi>=0){const P=pieces[pi];if(P===spinP)d.classList.add('pspin');if(P.tiles[1].r===r&&P.tiles[1].c===c&&human()){const rb=document.createElement('button');rb.className='rotb';rb.textContent='↻';rb.dataset.i=pi;d.classList.add('hasrot');d.appendChild(rb);}}
   if(gk.has(r*8+c))d.classList.add(ghost.ok?'gok':'gbad');bd.appendChild(d);}
  const rk=$('rack');rk.innerHTML='';const who=g.mode==='pvp'?g.turn:0,rack=g.racks[who];
  for(let s=0;s<3;s++){const set=document.createElement('div'),o=L.normO(g.orient[who][s]);set.className='set '+(o%2?'v':'h')+(spin===s?' spin':'')+(sel===s&&g.turn===who?' sel':'');set.dataset.s=s;
@@ -37,13 +38,16 @@ $('rack').addEventListener('pointerup',e=>{const rb=e.target.closest('.rot');if(
 $('rack').addEventListener('dblclick',e=>e.preventDefault());
 $('board').onclick=e=>{if(Date.now()-noClick<500)return;const t=e.target.closest('.cell');if(!t||!human())return;const r=+t.dataset.r,c=+t.dataset.c;
  if(pieceAt(r,c)>=0)return;tryPlace(sel,r,c);};
+function rotPlaced(p){const res=L.rotateInPlace(g.board,g.racks[g.turn],pieces.filter(x=>x!==p).flatMap(x=>x.tiles),p.s,g.orient[g.turn][p.s],p.r,p.c);
+ if(res){g.orient[g.turn][p.s]=res.o;Object.assign(p,{r:res.r,c:res.c,tiles:res.tiles});spinP=p;beep(700);setTimeout(()=>{spinP=null;},250);}else{say("Doesn't fit");beep(200);}render();}
+let spinP=null;
 function pieceAt(r,c){return pieces.findIndex(p=>p.tiles.some(q=>q.r===r&&q.c===c));}
 // drag whole piece: pointer events, no page scroll
 let drag=null;
 $('rack').addEventListener('pointerdown',e=>{if(e.target.closest('.rot'))return;const set=e.target.closest('.set');if(!set||set.classList.contains('empty')||!human())return;
  e.preventDefault();const s=+set.dataset.s,now=Date.now();
  drag={s,x0:e.clientX,y0:e.clientY,moved:false,el:null,tap:now};try{set.setPointerCapture(e.pointerId);}catch(_){}});
-$('board').addEventListener('pointerdown',e=>{const cell=e.target.closest('.cell');if(!cell||!human())return;const i=pieceAt(+cell.dataset.r,+cell.dataset.c);if(i<0)return;
+let rotTap=null;$('board').addEventListener('pointerdown',e=>{const rb=e.target.closest('.rotb');if(rb&&human()){e.preventDefault();e.stopPropagation();rotTap={p:pieces[+rb.dataset.i],x:e.clientX,y:e.clientY};return;}const cell=e.target.closest('.cell');if(!cell||!human())return;const i=pieceAt(+cell.dataset.r,+cell.dataset.c);if(i<0)return;
  e.preventDefault();drag={s:pieces[i].s,x0:e.clientX,y0:e.clientY,moved:false,el:null,board:pieces[i]};});
 addEventListener('pointermove',e=>{if(!drag)return;e.preventDefault();
  if(drag.board&&!drag.moved&&Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0)>8){pieces=pieces.filter(p=>p!==drag.board);}
@@ -54,15 +58,16 @@ addEventListener('pointermove',e=>{if(!drag)return;e.preventDefault();
  const el=document.elementFromPoint(ox+cs/2,oy+cs/2),cell=el&&el.closest('#board .cell');
  const ng=cell?(()=>{const t=tilesAt(drag.s,+cell.dataset.r,+cell.dataset.c);return {tiles:t.filter(q=>q.r<8&&q.c<8),ok:L.validPiece(g.board,placed(),t),r:+cell.dataset.r,c:+cell.dataset.c};})():null;
  if(JSON.stringify(ng)!==JSON.stringify(ghost)){ghost=ng;render();}},{passive:false});
-let noClick=0;addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;if(d.board||d.moved)noClick=Date.now();
- if(d.board&&!d.moved){const p=d.board,res=L.rotateInPlace(g.board,g.racks[g.turn],pieces.filter(x=>x!==p).flatMap(x=>x.tiles),p.s,g.orient[g.turn][p.s],p.r,p.c);
-  if(res){g.orient[g.turn][p.s]=res.o;p.tiles=res.tiles;beep(700);}else{say("Doesn't fit");beep(200);}render();return;}
+let noClick=0;addEventListener('pointerup',e=>{if(rotTap){const t=rotTap;rotTap=null;noClick=Date.now();if(Math.hypot(e.clientX-t.x,e.clientY-t.y)<20)rotPlaced(t.p);return;}if(!drag)return;const d=drag;drag=null;if(d.board||d.moved)noClick=Date.now();
+ if(d.board&&!d.moved){rotPlaced(d.board);return;}
+ if(false){const p=d.board,res=L.rotateInPlace(g.board,g.racks[g.turn],pieces.filter(x=>x!==p).flatMap(x=>x.tiles),p.s,g.orient[g.turn][p.s],p.r,p.c);
+  if(res){g.orient[g.turn][p.s]=res.o;p.tiles=res.tiles;p.r=res.r;p.c=res.c;beep(700);}else{say("Doesn't fit");beep(200);}render();return;}
  if(d.moved){d.el&&d.el.remove();const gh=ghost;ghost=null;
   if(gh&&tryPlace(d.s,gh.r,gh.c))return;
   if(d.board){const el=document.elementFromPoint(e.clientX,e.clientY);if(el&&el.closest('#rack')){sel=d.s;say('Returned to tray');render();return;}pieces.push(d.board);}
   render();return;}
  if(sel===d.s)rotate(d.s);else{sel=d.s;render();}});
-addEventListener('pointercancel',()=>{if(drag){drag.el&&drag.el.remove();if(drag.board&&!pieces.includes(drag.board))pieces.push(drag.board);drag=null;ghost=null;render();}});
+addEventListener('pointercancel',()=>{rotTap=null;if(drag){drag.el&&drag.el.remove();if(drag.board&&!pieces.includes(drag.board))pieces.push(drag.board);drag=null;ghost=null;render();}});
 document.addEventListener('touchmove',e=>{if(drag)e.preventDefault();},{passive:false});
 $('recall').onclick=()=>{pieces=[];sel=firstFree();boost=false;render();};
 $('power').onclick=()=>{boost=!boost;say(boost?'⚡ Double points this move!':'Power-up off');render();};

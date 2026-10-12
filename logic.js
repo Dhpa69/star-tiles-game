@@ -30,7 +30,10 @@ function pieceTiles(rack,s,o,r,c){o=normO(o);const vert=o%2===1,rev=o>=2;
 function validPiece(b,placed,tiles){const nb=withPlaced(b,placed);return tiles.every(t=>inb(t.r,t.c)&&!nb[t.r][t.c]&&t.color);}
 // uncommitted piece helpers: move / rotate in place against the other pieces placed this move
 function movePiece(b,rack,others,s,o,r,c){const t=pieceTiles(rack,s,o,r,c);return validPiece(b,others,t)?t:null;}
-function rotateInPlace(b,rack,others,s,o,r,c){const no=rotateO(o),t=pieceTiles(rack,s,no,r,c);return validPiece(b,others,t)?{o:no,tiles:t}:null;}
+// rotate 90° around the middle tile; if blocked, try shifting ±1 (then ±2) along the new axis
+function rotateInPlace(b,rack,others,s,o,r,c){const no=rotateO(o),mid=pieceTiles(rack,s,o,r,c)[1],vert=no%2===1;
+ for(const d of [0,-1,1,-2,2]){const nr=vert?mid.r-1+d:mid.r,nc=vert?mid.c:mid.c-1+d,t=pieceTiles(rack,s,no,nr,nc);if(validPiece(b,others,t))return {o:no,r:nr,c:nc,tiles:t};}
+ return null;}
 function group(b,r,c){const col=b[r][c].color,seen=new Set(),st=[[r,c]],out=[];
  while(st.length){const [y,x]=st.pop(),k=y*N+x;if(seen.has(k))continue;seen.add(k);
   if(!inb(y,x))continue;const t=b[y][x];if(!t)continue;

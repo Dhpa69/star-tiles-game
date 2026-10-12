@@ -53,9 +53,10 @@ a.equal(o,0);a.equal(L.rotateO(3),0);a.deepEqual(L.pieceTiles(RG,0,2,0,0).map(q=
  const p0=L.pieceTiles(RR,0,0,5,0),other=L.pieceTiles(RR,1,0,7,0);
  a.deepEqual(L.movePiece(B,RR,other,0,0,2,2).map(q=>[q.r,q.c]),[[2,2],[2,3],[2,4]]);
  a.equal(L.movePiece(B,RR,other,0,0,7,1),null); a.equal(L.movePiece(B,RR,[],0,0,0,2),null); a.equal(L.movePiece(B,RR,[],0,0,4,6),null);
- const r1=L.rotateInPlace(B,RR,[],0,0,4,0);a.ok(r1&&r1.o===1);a.deepEqual(r1.tiles.map(q=>[q.r,q.c,q.color]),[[4,0,'red'],[5,0,'green'],[6,0,'blue']]);
- a.equal(L.rotateInPlace(B,RR,other,0,0,5,0),null); // would hit piece at row 7 a.equal(L.rotateInPlace(B,RR,L.pieceTiles(RR,1,0,6,0),0,0,5,0),null); // blocked -> doesn't fit
+ const r1=L.rotateInPlace(B,RR,[],0,0,4,0);a.ok(r1&&r1.o===1);a.deepEqual(r1.tiles.map(q=>[q.r,q.c,q.color]),[[3,1,'red'],[4,1,'green'],[5,1,'blue']]); // pivot on middle tile
+ {const sh=L.rotateInPlace(B,RR,other,0,0,6,0);a.ok(sh&&sh.tiles.every(q=>q.r<7)&&sh.tiles.some(q=>q.c===1)); } // shifted to fit {const blk=empty();for(let r=0;r<8;r++)if(r!==4)blk[r][4]={color:'x'};a.equal(L.rotateInPlace(blk,RR,[],0,0,4,3),null);} // no vertical fit anywhere -> doesn't fit
  const r2=L.rotateInPlace(B,RR,[],0,1,4,4);a.ok(r2.o===2&&r2.tiles.map(q=>q.color).join()=='blue,green,red');
- a.equal(L.rotateInPlace(B,RR,[],0,0,6,7),null);} // vertical would leave board
+ {const e7=L.rotateInPlace(B,RR,[],0,0,7,5);a.ok(e7&&e7.tiles.every(q=>q.r<8)&&e7.tiles[2].r===7);}
+ {let o=0,r=3,c=3;const E=empty();for(let i=0;i<4;i++){const x=L.rotateInPlace(E,RR,[],0,o,r,c);o=x.o;r=x.r;c=x.c;a.deepEqual(x.tiles[1].r*8+x.tiles[1].c,3*8+4);}a.equal(o,0);a.deepEqual([r,c],[3,3]);}}
 let n=0;const t0=Date.now();while(!g.over){const m=L.aiMove(g);a.ok(m.pl.length%3===0);L.commit(g,m.pl,m.boost);n++;}
 a.equal(n,20);a.deepEqual(g.moves,[10,10]);console.log('ok',g.scores,g.winner,(Date.now()-t0)+'ms');
