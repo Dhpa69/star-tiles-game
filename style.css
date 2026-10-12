@@ -97,3 +97,8 @@ html,body,button,.set,.rot,#rack{touch-action:manipulation}
 .names{font-size:12px}.names span{white-space:nowrap}
 .cost{display:block;font-size:9px;opacity:.9}
 #badge{white-space:nowrap}
+/* v12 live score preview */
+#prev{position:fixed;right:10px;bottom:calc(84px + env(safe-area-inset-bottom));background:#5a6472;color:#fff;font-weight:900;font-size:15px;padding:5px 12px;border-radius:14px;border:2px solid #fff;box-shadow:0 2px 6px #0006;display:none;z-index:8;pointer-events:none}
+#prev.show{display:block}#prev.hot{background:linear-gradient(#ffb43c,#f07a00)}
+.cell.will .tile{animation:will .7s ease-in-out infinite alternate}
+@keyframes will{from{box-shadow:0 0 0 2px #fff,0 0 6px 2px #ffb000}to{box-shadow:0 0 0 3px #ffd84a,0 0 14px 6px #ff9000}}

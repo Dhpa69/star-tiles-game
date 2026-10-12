@@ -21,6 +21,8 @@ function human(){return !g.over&&(g.mode==='pvp'||g.turn===0)&&!busy;}
 function firstFree(){const r=g.racks[g.turn];for(let s=0;s<3;s++)if(r[3*s]&&!usedSet(s))return s;return null;}
 function tilesAt(s,r,c){return L.pieceTiles(g.racks[g.turn],s,g.orient[g.turn][s],r,c);}
 function render(){setTimeout(fit,0);const b=cur(),bd=$('board');bd.innerHTML='';
+ const pvTiles=placed().concat(ghost&&ghost.ok?ghost.tiles:[]),pv=L.previewMove(g,pvTiles,boost),willSet=new Set(pv.pops.map(q=>q.r*8+q.c));
+ const pe=$('prev');pe.textContent='This move: +'+pv.score+(boost&&pv.score?' (⚡x2)':'');pe.className=(human()&&!aim&&(pvTiles.length||boost))?'show'+(pv.score?' hot':''):'';
  const aimSet=new Set(aim&&aim.r!=null?L.blastCells(aim.type,aim.r,aim.c).map(([y,x])=>y*8+x):[]),fxSet=new Set(blastFx.map(([y,x])=>y*8+x));
  const gk=ghost?new Set(ghost.tiles.map(t=>t.r*8+t.c)):new Set();
  for(let r=0;r<8;r++)for(let c=0;c<8;c++){const d=document.createElement('div'),m=L.mult(r,c);d.className='cell'+(m>1?' m'+m:'');d.dataset.r=r;d.dataset.c=c;const t=b[r][c];
@@ -28,7 +30,7 @@ function render(){setTimeout(fit,0);const b=cur(),bd=$('board');bd.innerHTML='';
    else e.className='tile '+t.color+(t.fresh?' fresh':'');d.appendChild(e);d.className='cell';}
   else if(pops.some(q=>q.r===r&&q.c===c)){const q=pops.find(q=>q.r===r&&q.c===c),e=document.createElement('div');e.className='tile pop '+q.color;d.appendChild(e);}
   const pi=pieceAt(r,c);if(pi>=0){const P=pieces[pi];if(P===spinP)d.classList.add('pspin');if(P.tiles[1].r===r&&P.tiles[1].c===c&&human()&&!aim){const rb=document.createElement('button');rb.className='rotb';rb.textContent='↻';rb.dataset.i=pi;d.classList.add('hasrot');d.appendChild(rb);}}
-  if(aimSet.has(r*8+c))d.classList.add('aimp');if(fxSet.has(r*8+c))d.classList.add('boom');
+  if(willSet.has(r*8+c))d.classList.add('will');if(aimSet.has(r*8+c))d.classList.add('aimp');if(fxSet.has(r*8+c))d.classList.add('boom');
   if(gk.has(r*8+c))d.classList.add(ghost.ok?'gok':'gbad');bd.appendChild(d);}
  const rk=$('rack');rk.innerHTML='';const who=g.mode==='pvp'?g.turn:0,rack=g.racks[who];
  for(let s=0;s<3;s++){const set=document.createElement('div'),o=L.normO(g.orient[who][s]);set.className='set '+(o%2?'v':'h')+(spin===s?' spin':'')+(sel===s&&g.turn===who?' sel':'');set.dataset.s=s;

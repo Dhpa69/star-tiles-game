@@ -49,6 +49,8 @@ function evaluate(b,pl,boost){const nb=b.map(row=>row.map(t=>t&&{...t}));let sco
    g.forEach(([y,x])=>{if(!nb[y][x].star){cleared++;pops.push({r:y,c:x,color:nb[y][x].color});}});}}
  for(const p of pops)nb[p.r][p.c]=null; // scored colored tiles are cleared; stars stay
  nb.forEach(r=>r.forEach(t=>t&&delete t.fresh));if(boost)score*=2;return {score,board:nb,cleared,pops};}
+// exact preview of what PLAY would score now (same evaluate() as commit)
+function previewMove(g,pl,boost){return evaluate(g.board,pl,!!boost&&canPower(g));}
 function commit(g,pl,boost){const p=g.turn;
  if(boost){if(!canPower(g))boost=false;else usePower(g);}
  const res=evaluate(g.board,pl,boost);g.board=res.board;g.scores[p]+=res.score;g.pot+=Math.round(res.score/2)+100;
@@ -105,6 +107,6 @@ function aiPlan(g,level){level=level||'medium';const opt=LEVELS[level]||LEVELS.m
  if(canPower(g)&&countFits(g)<12){let best=null;for(const type of ['cross','bomb'])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const n=blastCells(type,r,c).filter(([y,x])=>g.board[y][x]).length;if(!best||n>best.n)best={type,r,c,n};}
   if(best&&best.n>=3){bl={type:best.type,r:best.r,c:best.c,...blast(g,best.type,best.r,best.c)};}}
  const m=aiMove(g,opt);return {blast:bl,pl:m.pl,boost:m.boost};}
-const api={START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
+const api={previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
 if(typeof module!=='undefined')module.exports=api;else root.Logic=api;
 })(this);

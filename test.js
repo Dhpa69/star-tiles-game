@@ -75,6 +75,9 @@ a.equal(o,0);a.equal(L.rotateO(3),0);a.deepEqual(L.pieceTiles(RG,0,2,0,0).map(q=
  a.equal(D.power[0],0);}
 let n=0;const t0=Date.now();while(!g.over){const m=L.aiPlan(g);a.ok(m.pl.length%3===0);L.commit(g,m.pl,m.boost);n++;}
 a.equal(n,20);a.deepEqual(g.moves,[10,10]);
+// live preview == committed score (with and without double)
+for(let i=0;i<30;i++){let sd=i+11;const r=()=>(sd=(sd*16807)%2147483647)/2147483647;const G=L.newGame('ai',r);for(let k=0;k<6;k++){const m=L.aiMove(G);const bo=k%3===0;
+ const pv=L.previewMove(G,m.pl,bo),before=G.scores[G.turn],res=L.commit(G,m.pl,bo);a.equal(pv.score,res.score);a.equal(G.scores[1-G.turn]-before,pv.score);}}
 // economy
 {const E=L.newGame('pvp',rng);a.deepEqual(E.coins,[100,100]);a.equal(L.newGame('ai',rng).coins[0],100);
  a.ok(L.swap(E));a.equal(E.coins[0],100);L.commit(E,[]); // p0 free swap
