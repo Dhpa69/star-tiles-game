@@ -30,9 +30,13 @@ function pieceTiles(rack,s,o,r,c){o=normO(o);const vert=o%2===1,rev=o>=2;
 function validPiece(b,placed,tiles){const nb=withPlaced(b,placed);return tiles.every(t=>inb(t.r,t.c)&&!nb[t.r][t.c]&&t.color);}
 // uncommitted piece helpers: move / rotate in place against the other pieces placed this move
 function movePiece(b,rack,others,s,o,r,c){const t=pieceTiles(rack,s,o,r,c);return validPiece(b,others,t)?t:null;}
-// rotate 90° around the middle tile; if blocked, try shifting ±1 (then ±2) along the new axis
-function rotateInPlace(b,rack,others,s,o,r,c){const no=rotateO(o),mid=pieceTiles(rack,s,o,r,c)[1],vert=no%2===1;
- for(const d of [0,-1,1,-2,2]){const nr=vert?mid.r-1+d:mid.r,nc=vert?mid.c:mid.c-1+d,t=pieceTiles(rack,s,no,nr,nc);if(validPiece(b,others,t))return {o:no,r:nr,c:nc,tiles:t};}
+// rotate with auto-fit: try next rotation pivoting on the middle tile; if blocked, every position for that rotation,
+// nearest to the original piece first (pivot distance, then overlap with original cells); then the following rotations.
+function rotateInPlace(b,rack,others,s,o,r,c){const old=pieceTiles(rack,s,o,r,c),mid=old[1],oldSet=new Set(old.map(t=>t.r*N+t.c));
+ for(let k=1;k<=3;k++){const no=(normO(o)+k)%4,cands=[];
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){const t=pieceTiles(rack,s,no,y,x);if(!validPiece(b,others,t))continue;
+   const d=Math.abs(t[1].r-mid.r)+Math.abs(t[1].c-mid.c),ov=t.filter(q=>oldSet.has(q.r*N+q.c)).length;const ax=(no%2===1)?(t[1].c!==mid.c?1:0):(t[1].r!==mid.r?1:0);cands.push({d,ov,ax,y,x,t});}
+  if(cands.length){cands.sort((p,q)=>p.d-q.d||p.ax-q.ax||q.ov-p.ov);const w=cands[0];return {o:no,r:w.y,c:w.x,tiles:w.t};}}
  return null;}
 function group(b,r,c){const col=b[r][c].color,seen=new Set(),st=[[r,c]],out=[];
  while(st.length){const [y,x]=st.pop(),k=y*N+x;if(seen.has(k))continue;seen.add(k);

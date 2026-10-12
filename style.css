@@ -125,3 +125,6 @@ html,body,button,.set,.rot,#rack{touch-action:manipulation}
 .prt.star{background:#ffd23a}.cell{overflow:visible}
 .btn.mute{width:100%;margin-top:6px;background:linear-gradient(#7d8b9c,#5a6676);border-color:#46505c}
 .btn.resume{background:linear-gradient(#5be36a,#0e9c25);border-color:#0a6b1a}
+/* v17 */
+.rotb{display:none!important}
+.cell.pshake .tile{animation:shake .35s}@keyframes shake{20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
