@@ -149,7 +149,7 @@ function onMsg(d){const S=Online.st;
  else if(d.t==='away'){S.lastSeen=0;updOnl();}
  else if(d.t==='rematch'&&d.code){Online.persist({rematch:d.code});say('Rematch offered! See My online games');}
  renderGames();}
-function updOnl(){const el=$('ostat');if(!isOn()||g.over){el.className='';return;}const away=Date.now()-Online.st.lastSeen>200000;el.textContent=Online.st.p2p?'⚡ Direct connection · room '+Online.st.code:(away?'⚠ '+NAMES()[1-meIdx()]+' away / reconnecting…':'🌐 Relay · room '+Online.st.code);el.className=away?'show away':'show';}
+function updOnl(){const el=$('ostat');if(!isOn()||g.over){el.className='';return;}const away=Date.now()-Online.st.lastSeen>200000;const live=Online.netInfo().startsWith('live ✓');el.textContent=(away?'⚠ '+NAMES()[1-meIdx()]+' away':'🌐 Room '+Online.st.code)+' · '+(live?'Live ✓':'Fallback relay')+'  ⓘ';el.className=away?'show away':'show';}
 setInterval(()=>{if(isOn()&&!g.over){if(document.visibilityState==='visible')Online.ping();updOnl();}},90000); // v25: keepalive 90s
 setInterval(()=>{if(isOn())updOnl();},5000);
 document.addEventListener('visibilitychange',()=>{if(!isOn())return;if(document.visibilityState==='visible'){Online.ping('back');}else Online.ping('away');});
@@ -157,11 +157,11 @@ function beginOnline(seed,names,coins,log){pending.length=0;stopWait();g=L.newGa
  pieces=[];boost=false;busy=false;sel=firstFree();$('overlay').classList.remove('show');$('onl').classList.remove('show');render();updOnl();say(g.turn===meIdx()?'Your turn!':'Waiting for '+NAMES()[g.turn]+'…');}
 const onlStatus=t=>{if(waitT){onlErr(t);return;}$('onlmsg').textContent=t;if(isOn()&&t){$('ostat').textContent='⚠ '+t;$('ostat').className='show away';}else if(isOn())updOnl();};
 $('hostBtn').onclick=()=>{const nm=$('pname').value.trim();if(!nm){$('pname').focus();say('Enter your name first');return;}profile.name=nm;saveProfile();
- const code=Online.host(nm,profile.coins,{msg:onMsg,status:onlStatus,p2p:onP2P});$('onl').classList.add('show');$('onlcode').textContent=code;onlStatus('Share this code. Waiting for a friend to join…');};
+ const code=Online.host(nm,profile.coins,{msg:onMsg,status:onlStatus,p2p:onP2P,net:netUpd});$('onl').classList.add('show');$('onlcode').textContent=code;onlStatus('Share this code. Waiting for a friend to join…');};
 $('joinBtn').onclick=()=>{const nm=$('pname').value.trim();if(!nm){$('pname').focus();say('Enter your name first');return;}profile.name=nm;saveProfile();
  const code=Online.clean($('joinCode').value);if(code.length!==6){say('Room codes have 6 letters/numbers');onlErr('Room codes have 6 letters/numbers (you typed '+code.length+').');return;}
  joinRoom(code);};
-function joinRoom(code){const nm=profile.name;if(Online.saved(code)&&!Online.saved(code).over){openGame(code);return;}Online.join(code,nm,profile.coins,{msg:onMsg,status:onlStatus,p2p:onP2P});$('overlay').classList.remove('show');$('onl').classList.add('show');$('onlcode').textContent=code;onlStatus('Joining room…');renderGames();}
+function joinRoom(code){const nm=profile.name;if(Online.saved(code)&&!Online.saved(code).over){openGame(code);return;}Online.join(code,nm,profile.coins,{msg:onMsg,status:onlStatus,p2p:onP2P,net:netUpd});$('overlay').classList.remove('show');$('onl').classList.add('show');$('onlcode').textContent=code;onlStatus('Joining room…');renderGames();}
 $('onlCancel').onclick=()=>{stopWait();Online.leave();$('onl').classList.remove('show');renderGames();say('Room kept in My online games');};
 // ---- autosave / resume (local games only) ----
 const SKEY='startiles.save';
@@ -173,9 +173,9 @@ function showResume(){const ob=$('onlResume');if(ob)ob.style.display='none';cons
  if(s&&s.g)b.textContent=(g&&g._live&&!g.over?'▶ Continue game (':'▶ Resume game (')+(s.g.mode==='ai'?'vs COMPUTER':'Pass & Play')+', move '+Math.min(10,s.g.moves[0]+1)+'/10)';}
 $('onlResume').onclick=()=>openGame((Online.saved()||{}).code);
 function openGame(code){const s=Online.saved(code);if(!s)return;if(s.rematch&&s.over){joinRoom(s.rematch);return;}
- if(s.seed==null){Online.resume(s,{msg:onMsg,status:onlStatus,p2p:onP2P});$('onl').classList.add('show');$('onlcode').textContent=s.code;onlStatus(s.host?'Share this code. Waiting for a friend to join…':'Joining room…');return;}$('overlay').classList.remove('show');
+ if(s.seed==null){Online.resume(s,{msg:onMsg,status:onlStatus,p2p:onP2P,net:netUpd});$('onl').classList.add('show');$('onlcode').textContent=s.code;onlStatus(s.host?'Share this code. Waiting for a friend to join…':'Joining room…');return;}$('overlay').classList.remove('show');
  if(isOn()&&Online.st.on&&Online.st.code===s.code){render();return;} // still connected: just close the menu
- Online.resume(s,{msg:onMsg,status:onlStatus,p2p:onP2P});beginOnline(s.seed,s.names,s.coins,s.log);updOnl();say((s.over?'Finished game ':'Rejoined room ')+s.code+(s.over?'':' – catching up…'));if(g.over){$('result').innerHTML=(g.winner<0?'Tie game!':NAMES()[g.winner]+' wins!')+'<br>'+g.scores[0]+' – '+g.scores[1];Online.leave();$('overlay').classList.add('show');renderGames();}}
+ Online.resume(s,{msg:onMsg,status:onlStatus,p2p:onP2P,net:netUpd});beginOnline(s.seed,s.names,s.coins,s.log);updOnl();say((s.over?'Finished game ':'Rejoined room ')+s.code+(s.over?'':' – catching up…'));if(g.over){$('result').innerHTML=(g.winner<0?'Tie game!':NAMES()[g.winner]+' wins!')+'<br>'+g.scores[0]+' – '+g.scores[1];Online.leave();$('overlay').classList.add('show');renderGames();}}
 $('resumeBtn').onclick=()=>{const s=loadSave();if(!s)return;g=Object.assign(s.g,{rng:Math.random,_live:true});if(s.difficulty)profile.difficulty=s.difficulty;
  pieces=(s.pieces||[]).filter(p=>p&&p.tiles);boost=false;busy=false;aim=null;$('overlay').classList.remove('show');sel=firstFree();
  if(g.mode==='ai'&&g.turn===1){pieces=[];next();}else render();say('Game resumed');};
@@ -212,7 +212,7 @@ function esc(t){return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','
 document.addEventListener('click',e=>{const row=e.target.closest&&e.target.closest('.mg');if(!row)return;const code=row.dataset.code,a=e.target.dataset&&e.target.dataset.a,o=Online.saved(code);if(!o)return;
  if(a==='rm'){const G=replayGame(o);if(G&&!G.over&&!o.over){if(!confirm('Resign this game vs '+(o.names?o.names[1-o.me]:'friend')+'? It counts as a loss and they win.'))return;resignStored(o);}else if(!G&&!confirm('Remove this waiting room?'))return;
   if(isOn()&&Online.st.code===code){Online.leave();g=L.newGame('ai');g.coins[0]=profile.coins;render();}Online.clear(code);renderGames();return;}
- if(a==='rematch'){const nm=profile.name||$('pname').value.trim();if(!nm){say('Enter your name first');return;}const nc=Online.host(nm,profile.coins,{msg:onMsg,status:onlStatus,p2p:onP2P});Online.sendTo(code,o.id,{t:'rematch',code:nc});
+ if(a==='rematch'){const nm=profile.name||$('pname').value.trim();if(!nm){say('Enter your name first');return;}const nc=Online.host(nm,profile.coins,{msg:onMsg,status:onlStatus,p2p:onP2P,net:netUpd});Online.sendTo(code,o.id,{t:'rematch',code:nc});
   $('overlay').classList.remove('show');$('onl').classList.add('show');$('onlcode').textContent=nc;onlStatus('Rematch room – waiting for '+(o.names?o.names[1-o.me]:'friend')+'…');return;}
  if(a==='join'){joinRoom(o.rematch);return;}
  openGame(code);});
@@ -241,13 +241,20 @@ let waitT=null,waitStart=0;
 function stopWait(){clearInterval(waitT);waitT=null;const r=$('onlRetry');if(r)r.style.display='none';}
 function onlErr(t){const e=$('onlerr');if(e)e.textContent=t||'';}
 function startWait(){stopWait();waitStart=Date.now();onlErr('');
- waitT=setInterval(()=>{const S=Online.st;if(!S.on||S.seed!=null){stopWait();return;}const sec=Math.round((Date.now()-waitStart)/1000),net=S.sseOk||(S.netOk&&Date.now()-S.netOk<30000);
-  const conn=net?'✓ Connected to relay':'… connecting to relay';
+ waitT=setInterval(()=>{const S=Online.st;if(!S.on||S.seed!=null){stopWait();return;}const sec=Math.round((Date.now()-waitStart)/1000),net=Online.netInfo().startsWith('live ✓')||S.sseOk||(S.netOk&&Date.now()-S.netOk<30000);
+  const live=Online.netInfo().startsWith('live ✓'),conn=live?'✓ Connected (live)':net?'✓ Connected (fallback relay)':'… connecting';$('onldbg').textContent=Online.netInfo();
   if(!S.host){if(sec%10===0&&sec>0)Online.send({t:'hello',name:profile.name,coins:profile.coins});$('onlmsg').textContent=conn+' · asking host to start ('+sec+'s)';}
   else $('onlmsg').textContent=conn+' · waiting for a friend to join ('+sec+'s). Share the code.';
   const lim=S.host?180:45;if(sec>=lim){$('onlRetry').style.display='block';onlErr(S.host?'No one has joined yet. Check your friend typed the code, then tap Retry.':(net?'The host isn\u2019t answering. Make sure the host has this room open, check the code, then Retry.':'Can\u2019t reach the relay (ntfy.sh). Check your internet, then Retry.'));}},1000);}
-$('onlRetry').onclick=()=>{const S=Online.st,o=Online.saved(S.code);if(!o)return;Online.resume(o,{msg:onMsg,status:onlStatus,p2p:onP2P});if(!o.host)Online.send({t:'hello',name:profile.name,coins:profile.coins});startWait();};
+$('onlRetry').onclick=()=>{const S=Online.st,o=Online.saved(S.code);if(!o)return;Online.resume(o,{msg:onMsg,status:onlStatus,p2p:onP2P,net:netUpd});if(!o.host)Online.send({t:'hello',name:profile.name,coins:profile.coins});startWait();};
 (function(){const H=$('hostBtn').onclick,J=$('joinBtn').onclick;$('hostBtn').onclick=()=>{H();if(Online.st.on&&Online.st.seed==null)startWait();};$('joinBtn').onclick=()=>{J();if(Online.st.on&&Online.st.seed==null)startWait();};})();
 const _og=openGame;openGame=function(code){_og(code);const S=Online.st;if(S.on&&S.seed==null){if(!S.host)Online.send({t:'hello',name:profile.name,coins:profile.coins});startWait();}};
 
 function onP2P(on){updOnl();say(on?'⚡ Direct connection':'Direct link lost – using relay');}
+
+// ---- v27: debug line; tap the online status (or the line on the room screen) to copy the connection log ----
+function netUpd(){if(isOn())updOnl();const d=$('onldbg');if(d)d.textContent=Online.netInfo();}
+function copyLog(){const t='Star Tiles '+(document.getElementById('ver')||{}).textContent+' '+navigator.userAgent+'\n'+Online.netInfo()+'\n'+Online.dump();
+ const done=()=>say('Connection log copied – paste it in a message');
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done,()=>{window.prompt('Copy this log:',t);});else window.prompt('Copy this log:',t);}
+$('ostat').addEventListener('click',copyLog);$('onldbg').addEventListener('click',copyLog);

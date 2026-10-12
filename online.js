@@ -1,18 +1,27 @@
-// Online rooms over a free public relay (ntfy.sh, HTTPS + Server-Sent Events, no account).
-// Both phones run the same seeded game and exchange only actions (lockstep). ntfy.sh caches
-// messages ~12h, so a phone that left can rejoin by replaying the room history (since=all);
-// as a fallback it asks the other phone to resend missing actions.
+// Online rooms. Transport (v27): MQTT over WebSocket to public no-account brokers (mq.js: shiftr.io on 443,
+// EMQX, HiveMQ), with each move stored as a retained message so a returning phone replays the history.
+// ntfy.sh (HTTPS/SSE) is a secondary path. Both phones run the same seeded game and exchange only actions
+// (lockstep); if anything is missing a phone asks the other to resend.
 const Online=(function(){
  const RELAY='https://ntfy.sh/',SKEY='startiles.online';
  const st={on:false,host:false,me:0,code:null,topic:null,es:null,id:Math.random().toString(36).slice(2,10),applied:0,log:[],seed:null,names:null,coins:null,handlers:{},seen:new Set(),lastSeen:0};
  const clean=c=>String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
  const rnd=()=>{const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<6;i++)s+=A[Math.floor(Math.random()*A.length)];return s;};
  function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
- function send(msg,tries){msg.from=st.id;if(msg.t!=='rtc'&&st.dc&&st.dc.readyState==='open'){try{st.dc.send(JSON.stringify(msg));st.p2pSent=(st.p2pSent||0)+1;return Promise.resolve();}catch(e){}}const topic=st.topic;return fetch(RELAY+topic,{method:'POST',body:JSON.stringify(msg)}).then(r=>{if(r.status===429||!r.ok)throw new Error(r.status);st.netOk=Date.now();}).catch(e=>{st.handlers.status&&st.handlers.status(String(e.message)==='429'?'Relay busy (rate limited) – retrying…':'Connection problem – retrying…');if((tries||0)<5&&topic===st.topic)setTimeout(()=>send(msg,(tries||0)+1),String(e.message)==='429'?15000*((tries||0)+1):3000*((tries||0)+1));});}
+ // v27: main transport = MQTT over WebSocket (public no-account brokers, see mq.js), retained per-move topics give history.
+ // ntfy.sh stays as a secondary path for the few important messages (hello/start/act/rematch) and when MQTT is down.
+ const T=c=>'startiles/v1/'+c;const IMPORTANT={act:1,start:1,hello:1,rematch:1};
+ const DBG=[];function dlog(m){DBG.push(new Date().toTimeString().slice(0,8)+' '+m);if(DBG.length>200)DBG.shift();st.lastLog=m;}
+ function topicFor(code,msg){return msg.t==='act'?T(code)+'/a/'+msg.n:(msg.t==='start'||msg.t==='hello'||msg.t==='rematch')?T(code)+'/'+msg.t:T(code)+'/x';}
+ function publish(code,msg){if(!msg.u)msg.u=Math.random().toString(36).slice(2,11);let n=0;try{n=MQ.pub(topicFor(code,msg),JSON.stringify(msg),!!IMPORTANT[msg.t]);}catch(e){}
+  if(!n&&IMPORTANT[msg.t]){PENDQ.push([code,msg]);if(PENDQ.length>50)PENDQ.shift();}
+  dlog('tx '+msg.t+(msg.n!=null?'#'+msg.n:'')+' mqtt:'+n);return n;}
+ const PENDQ=[];function flushQ(){const q=PENDQ.splice(0);q.forEach(([c,m])=>publish(c,m));}
+ function send(msg,tries){msg.from=st.id;if(!tries){const n=publish(st.code,msg);if(n&&!IMPORTANT[msg.t])return Promise.resolve();}if(msg.t!=='rtc'&&st.dc&&st.dc.readyState==='open'){try{st.dc.send(JSON.stringify(msg));st.p2pSent=(st.p2pSent||0)+1;return Promise.resolve();}catch(e){}}const topic=st.topic;return fetch(RELAY+topic,{method:'POST',body:JSON.stringify(msg)}).then(r=>{if(r.status===429||!r.ok)throw new Error(r.status);st.netOk=Date.now();}).catch(e=>{dlog('ntfy send fail '+e.message);if(!MQ.up.length)st.handlers.status&&st.handlers.status(String(e.message)==='429'?'Relay busy (rate limited) – retrying…':'Connection problem – retrying…');if((tries||0)<5&&topic===st.topic)setTimeout(()=>send(msg,(tries||0)+1),String(e.message)==='429'?15000*((tries||0)+1):3000*((tries||0)+1));});}
  // v24: two transports. SSE (fast) + fetch polling /json?poll=1&since=<last id> (reliable on iOS, where
  // EventSource dies in the background / home-screen PWA). Same handler + dedupe by ntfy message id.
  function handle(env){let d;if(!env||env.event&&env.event!=='message')return;try{d=JSON.parse(env.message);}catch(_){return;}
-  if(env.id){if(st.seen.has(env.id))return;st.seen.add(env.id);st.pollId=env.id;}if(!d||d.from===st.id)return;
+  if(env.id){if(st.seen.has(env.id))return;st.seen.add(env.id);st.pollId=env.id;}if(!d||d.from===st.id)return;if(d.u){if(st.seen.has('u'+d.u))return;st.seen.add('u'+d.u);}dlog('rx ntfy '+d.t+(d.n!=null?'#'+d.n:''));
   d._old=env.time&&env.time*1000<st.since-5000;if(d.t==='rtc'){if(!d._old)rtcMsg(d);return;}
   if(d.t==='back'&&!d._old&&st.dc){rtcClose();if(!st.host)setTimeout(()=>sendSig({k:'req'}),300);} // peer came back via relay: our direct link is stale
   d._old=env.time&&env.time*1000<st.since-5000;if(!d._old)st.lastSeen=Date.now();st.lastAct=Math.max(st.lastAct||0,(env.time||0)*1000);st.handlers.msg&&st.handlers.msg(d);}
@@ -36,7 +45,7 @@ const Online=(function(){
   if(d.k==='req'&&st.host&&!(st.pc&&st.pc.signalingState==='have-local-offer'&&Date.now()-st.offerAt<8000)){clearTimeout(st.rtcDeb);st.rtcDeb=setTimeout(()=>rtcStart(true),300);} // peer asked = it has no link (e.g. it reloaded)
   else if(d.k==='offer'&&!st.host)rtcAnswer(d);
   else if(d.k==='answer'&&st.host&&st.pc&&d.sid===st.sid&&st.pc.signalingState==='have-local-offer')st.pc.setRemoteDescription({type:'answer',sdp:d.sdp}).catch(()=>{});}
- const status=t=>{st.handlers.status&&st.handlers.status(t);};
+ const status=t=>{dlog('ntfy: '+t);if(!MQ.up.length)st.handlers.status&&st.handlers.status(t);};
  function openSSE(){try{if(st.es)st.es.close();}catch(e){}if(typeof EventSource==='undefined')return;st.es=new EventSource(RELAY+st.topic+'/sse?since=all');
   st.es.onopen=()=>{st.sseOk=true;st.netOk=Date.now();};st.es.onmessage=e=>{let env;try{env=JSON.parse(e.data);}catch(_){return;}handle(env);};
   st.es.onerror=()=>{st.sseOk=false;};}
@@ -50,9 +59,9 @@ const Online=(function(){
  function loop(){clearTimeout(st.loopT);if(!st.on)return;const waiting=st.seed==null,vis=typeof document==='undefined'||document.visibilityState==='visible';
   // waiting room: poll every 4s; in game: poll every 6s if SSE is down, else a 20s safety poll
   // v25: the live SSE connection is the transport; poll only while it is down, at most every 10s (15s+ after a 429)
-  if(vis&&!st.sseOk&&(st.loopN++>0||!st.es||st.es.readyState===2))pollNow();if(!st.sseOk&&st.es&&st.es.readyState===2)openSSE();
+  if(vis&&!st.sseOk&&!MQ.up.length&&(st.loopN++>0||!st.es||st.es.readyState===2))pollNow();if(!st.sseOk&&st.es&&st.es.readyState===2)openSSE();
   const gap=st.backoff||(waiting?10000:15000);st.loopT=setTimeout(loop,gap);}
- function listen(){st.since=Date.now();st.sseOk=false;st.pollId=null;st.loopN=0;st.backoff=0;openSSE();clearTimeout(st.loopT);st.loopT=setTimeout(loop,st.es?10000:1000);}
+ function listen(){MQ.sub(T(st.code)+'/#');st.since=Date.now();st.sseOk=false;st.pollId=null;st.loopN=0;st.backoff=0;openSSE();clearTimeout(st.loopT);st.loopT=setTimeout(loop,st.es?10000:1000);}
  if(typeof document!=='undefined')document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&st.on){if(!st.es||st.es.readyState===2)openSSE();}});
  // v22: many games at once, stored by room code in GKEY (old single-game SKEY migrated on first read)
  const GKEY='startiles.online.games';
@@ -69,7 +78,7 @@ const Online=(function(){
   if(d.t==='start'&&o.seed==null&&!o.host){o.seed=d.seed;o.names=d.names;o.coins=d.coins;return true;}
   if(d.t==='hello'&&o.host&&o.seed==null){o.helloFrom={name:d.name,coins:d.coins};return true;}
   if(d.t==='rematch'&&d.code){o.rematch=d.code;return true;}return false;}
- async function pollAll(h,force){if(polling)return;clearTimeout(pollT);pollT=setTimeout(()=>pollAll(h),pollGap);
+ async function pollAll(h,force){bgH=h;bgSubs();if(MQ.up.length&&!force)return;if(polling)return;clearTimeout(pollT);pollT=setTimeout(()=>pollAll(h),pollGap);
   if(st.on&&st.seed==null)return; // connecting: leave the request budget to the room
   if(!force&&Date.now()-lastPoll<Math.min(pollGap,60000))return;
   const m=all(),codes=Object.keys(m).filter(c=>!(st.on&&st.code===c)&&!m[c].removed&&!(m[c].over&&Date.now()-(m[c].lastAct||0)>86400000));
@@ -82,17 +91,25 @@ const Online=(function(){
     if(seen.has(env.id))continue;seen.add(env.id);const code=(env.topic||'').replace('startiles-room-','');const o=mm[code];if(!o)continue;if(applyBg(o,env,d))changed.add(code);}
    putAll(mm);if(h)changed.forEach(c=>h(mm[c]));}
   catch(e){}finally{polling=false;}}
+ let bgH=null;
+ function onMq(topic,payload,retained){const code=topic.split('/')[2];let d;try{d=JSON.parse(payload);}catch(e){return;}if(!d)return;
+  if(st.on&&code===st.code){if(d.from===st.id)return;if(d.u){if(st.seen.has('u'+d.u))return;st.seen.add('u'+d.u);}dlog('rx mqtt '+d.t+(d.n!=null?'#'+d.n:'')+(retained?' (stored)':''));
+   d._old=retained;if(d.t==='rtc')return;if(!retained)st.lastSeen=Date.now();st.lastAct=Math.max(st.lastAct||0,Date.now()*(retained?0:1));st.netOk=Date.now();st.handlers.msg&&st.handlers.msg(d);return;}
+  const m=all(),o=m[code];if(!o)return;if(applyBg(o,{time:retained?0:Date.now()/1000},d)){putAll(m);bgH&&bgH(o);}}
+ function bgSubs(){const m=all();for(const c in m){const o=m[c];if(o.removed||(o.over&&Date.now()-(o.lastAct||0)>86400000))continue;MQ.sub(T(c)+'/#');}}
+ if(typeof WebSocket!=='undefined'&&typeof MQ!=='undefined'){MQ.start(onMq,m=>{dlog(m);st.handlers.net&&st.handlers.net();if(/connected$/.test(m)){bgSubs();setTimeout(flushQ,300);}});
+  if(typeof document!=='undefined')document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')MQ.wake();});}
  let reqs=0;const _f=typeof fetch!=='undefined'?fetch:null;if(_f&&typeof window!=='undefined'){window.fetch=function(u){if(String(u).indexOf('ntfy.sh')>=0)reqs++;return _f.apply(this,arguments);};}
- return {get reqs(){return reqs;},st,mulberry,send,persist,all,upd,pollAll,pollNow,clean,
+ return {get reqs(){return reqs;},dump(){return DBG.join('\n');},dlog,netInfo(){const up=MQ.up;return (up.length?'live ✓ '+up.join('+'):'live ✗')+' · ntfy '+(st.sseOk?'✓':'✗')+(st.lastLog?' · '+st.lastLog:'');},st,mulberry,send,persist,all,upd,pollAll,pollNow,clean,
   get pollGap(){return pollGap;},
   saved(code){const m=all();if(code)return m[code]||null;const c=st.code&&m[st.code]?st.code:Object.keys(m)[0];return c?m[c]:null;},
-  clear(code){const m=all();delete m[code||st.code];putAll(m);},
-  sendTo(code,id,msg){msg.from=id;return fetch(RELAY+'startiles-room-'+code,{method:'POST',body:JSON.stringify(msg)}).catch(()=>{});},
+  clear(code){const m=all();const c=code||st.code;delete m[c];putAll(m);if(!(st.on&&st.code===c))MQ.unsub(T(c)+'/#');},
+  sendTo(code,id,msg){msg.from=id;publish(code,msg);return fetch(RELAY+'startiles-room-'+code,{method:'POST',body:JSON.stringify(msg)}).catch(()=>{});},
   host(name,coins,h){Object.assign(st,{on:true,host:true,me:0,code:rnd(),applied:0,log:[],seed:null,handlers:h});st.topic='startiles-room-'+st.code;st.id=Math.random().toString(36).slice(2,10);st.seen=new Set();st.lastAct=Date.now();listen();persist();return st.code;},
   join(code,name,coins,h){Object.assign(st,{on:true,host:false,me:1,code:clean(code),applied:0,log:[],seed:null,handlers:h});st.topic='startiles-room-'+st.code;st.id=Math.random().toString(36).slice(2,10);st.seen=new Set();st.lastAct=Date.now();listen();persist();send({t:'hello',name,coins});},
   resume(s,h){Object.assign(st,{on:true,host:s.host,me:s.me,code:s.code,id:s.id,applied:(s.log||[]).length,log:(s.log||[]).slice(),seed:s.seed,lastAct:s.lastAct||0,names:s.names,coins:s.coins,handlers:h});st.topic='startiles-room-'+st.code;
    st.seen=new Set();listen();send({t:'back',have:st.applied});},
-  setGame(seed,names,coins){st.seed=seed;st.names=names;st.coins=coins;persist();clearTimeout(st.rtcT);st.rtcT=setTimeout(rtcStart,st.host?1500:500);},
+  setGame(seed,names,coins){st.seed=seed;st.names=names;st.coins=coins;persist();},
   rtcStart,rtcClose,
   start(seed,names,coins){send({t:'start',seed,names,coins});},
   act(a){const n=st.applied;st.applied++;st.log.push(a);st.lastAct=Date.now();persist();send({t:'act',n,a});},
