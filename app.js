@@ -18,9 +18,9 @@ function render(){setTimeout(fit,0);const b=cur(),bd=$('board');bd.innerHTML='';
   else if(pops.some(q=>q.r===r&&q.c===c)){const q=pops.find(q=>q.r===r&&q.c===c),e=document.createElement('div');e.className='tile pop '+q.color;d.appendChild(e);}
   if(gk.has(r*8+c))d.classList.add(ghost.ok?'gok':'gbad');bd.appendChild(d);}
  const rk=$('rack');rk.innerHTML='';const who=g.mode==='pvp'?g.turn:0,rack=g.racks[who];
- for(let s=0;s<3;s++){const set=document.createElement('div'),o=g.orient[who][s];set.className='set '+o+(sel===s&&g.turn===who?' sel':'');set.dataset.s=s;
+ for(let s=0;s<3;s++){const set=document.createElement('div'),o=L.normO(g.orient[who][s]);set.className='set '+(o%2?'v':'h')+(spin===s?' spin':'')+(sel===s&&g.turn===who?' sel':'');set.dataset.s=s;
   const hidden=!rack[3*s]||(g.turn===who&&usedSet(s));
-  for(let j=0;j<3;j++){const d=document.createElement('div');d.className='rt';if(!hidden)d.innerHTML=tileHTML(rack[3*s+j]);set.appendChild(d);}
+  const disp=L.pieceTiles(rack,s,o,0,0);for(let j=0;j<3;j++){const d=document.createElement('div');d.className='rt';if(!hidden)d.innerHTML=tileHTML(disp[j].color);set.appendChild(d);}
   if(!hidden){const rb=document.createElement('button');rb.className='rot';rb.textContent='↻';rb.dataset.s=s;set.appendChild(rb);}else set.classList.add('empty');
   rk.appendChild(set);}
  $('s0').textContent=g.scores[0];$('s1').textContent=g.scores[1];$('pot').textContent=g.pot;
@@ -31,8 +31,10 @@ function render(){setTimeout(fit,0);const b=cur(),bd=$('board');bd.innerHTML='';
 function tryPlace(s,r,c){if(s===null||!human()||usedSet(s)||!g.racks[g.turn][3*s])return false;const t=tilesAt(s,r,c);
  if(!L.validPiece(g.board,placed(),t)){say('Doesn\'t fit there');beep(200);return false;}
  pieces.push({s,tiles:t});sel=firstFree();beep(600);render();return true;}
-function rotate(s){if(!human()||usedSet(s))return;g.orient[g.turn][s]=g.orient[g.turn][s]==='h'?'v':'h';sel=s;render();}
-$('rack').onclick=e=>{const rb=e.target.closest('.rot');if(rb){rotate(+rb.dataset.s);return;}};
+let spin=null,lastRot=0;function rotate(s){if(!human()||usedSet(s))return;const now=performance.now();if(now-lastRot<120)return;lastRot=now; // guard only against same-event double-fire
+ g.orient[g.turn][s]=L.rotateO(g.orient[g.turn][s]);sel=s;spin=s;render();clearTimeout(rotate.t);rotate.t=setTimeout(()=>{spin=null;},220);}
+$('rack').addEventListener('pointerup',e=>{const rb=e.target.closest('.rot');if(rb){e.preventDefault();e.stopPropagation();rotate(+rb.dataset.s);}});
+$('rack').addEventListener('dblclick',e=>e.preventDefault());
 $('board').onclick=e=>{const t=e.target.closest('.cell');if(!t||!human())return;const r=+t.dataset.r,c=+t.dataset.c;
  const last=pieces[pieces.length-1];if(last&&last.tiles.some(q=>q.r===r&&q.c===c)){pieces.pop();sel=last.s;render();return;}tryPlace(sel,r,c);};
 // drag whole piece: pointer events, no page scroll
@@ -42,7 +44,7 @@ $('rack').addEventListener('pointerdown',e=>{if(e.target.closest('.rot'))return;
  drag={s,x0:e.clientX,y0:e.clientY,moved:false,el:null,tap:now};try{set.setPointerCapture(e.pointerId);}catch(_){}});
 addEventListener('pointermove',e=>{if(!drag)return;e.preventDefault();
  if(!drag.moved&&Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0)>8){drag.moved=true;sel=drag.s;render();
-  const el=document.createElement('div');el.className='drag set '+g.orient[g.turn][drag.s];const rack=g.racks[g.turn];for(let j=0;j<3;j++){const d=document.createElement('div');d.className='rt big';d.innerHTML=tileHTML(rack[3*drag.s+j]);el.appendChild(d);}document.body.appendChild(el);drag.el=el;}
+  const el=document.createElement('div');const oo=L.normO(g.orient[g.turn][drag.s]);el.className='drag set '+(oo%2?'v':'h');const disp=L.pieceTiles(g.racks[g.turn],drag.s,oo,0,0);for(let j=0;j<3;j++){const d=document.createElement('div');d.className='rt big';d.innerHTML=tileHTML(disp[j].color);el.appendChild(d);}document.body.appendChild(el);drag.el=el;}
  if(!drag.moved)return;const cs=$('board').querySelector('.cell').getBoundingClientRect().width;
  drag.el.style.setProperty('--dt',cs+'px');const ox=e.clientX-cs/2,oy=e.clientY-cs*1.6;drag.el.style.left=ox+'px';drag.el.style.top=oy+'px';
  const el=document.elementFromPoint(ox+cs/2,oy+cs/2),cell=el&&el.closest('#board .cell');

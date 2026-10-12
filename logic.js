@@ -2,13 +2,14 @@
 const COLORS=['yellow','green','blue','pink','red','orange'];
 const N=8, MOVES=10, RACK=9;
 function mult(r,c){ if((r==0||r==N-1)&&(c==0||c==N-1)) return 3; if((r==2||r==5)&&(c==2||c==5)) return 2; return 1;}
-function rnd(rng){return rng()<0.2?'star':COLORS[Math.floor(rng()*COLORS.length)];}
+function rnd(rng){return rng()<0.08?'star':COLORS[Math.floor(rng()*COLORS.length)];}
 function rndColor(rng){return COLORS[Math.floor(rng()*COLORS.length)];}
-function deal(rng){const r=[];for(let i=0;i<RACK;i++)r.push(rnd(rng));return r;}
+function piece(rng){let st=false;return [0,1,2].map(()=>{let t=rnd(rng);if(t==='star'){if(st)t=rndColor(rng);st=true;}return t;});} // max 1 star per piece
+function deal(rng){return [].concat(piece(rng),piece(rng),piece(rng));}
 function newGame(mode,rng){rng=rng||Math.random;
  const b=[];for(let r=0;r<N;r++){b.push([]);for(let c=0;c<N;c++)b[r].push(null);}
  [[3,3],[3,4],[4,3],[4,4]].forEach(([r,c])=>b[r][c]={color:rndColor(rng)});
- return {orient:[['h','h','h'],['h','h','h']],board:b,mode,turn:0,moves:[0,0],scores:[0,0],pot:1000,racks:[deal(rng),deal(rng)],power:[2,2],coins:[729,0],over:false,rng};}
+ return {orient:[[0,0,0],[0,0,0]],board:b,mode,turn:0,moves:[0,0],scores:[0,0],pot:1000,racks:[deal(rng),deal(rng)],power:[2,2],coins:[729,0],over:false,rng};}
 const inb=(r,c)=>r>=0&&c>=0&&r<N&&c<N;
 function canPlace(b,r,c){ if(!inb(r,c)||b[r][c])return false;
  if(b.every(row=>row.every(t=>!t)))return true; // empty board: anywhere
@@ -20,7 +21,11 @@ function withPlaced(b,placed){const nb=b.map(x=>x.slice());placed.forEach(p=>nb[
 function validNext(b,placed,r,c){return canPlace(withPlaced(b,placed),r,c)&&inLine(placed,r,c);}
 function isLine(pl){return pl.every((p,i)=>inLine(pl.slice(0,i),p.r,p.c));}
 // pieces: set s = rack slots 3s..3s+2, straight line of 3, orient 'h' or 'v', anchored at first tile
-function pieceTiles(rack,s,o,r,c){return [0,1,2].map(j=>({r:o==='h'?r:r+j,c:o==='h'?c+j:c,color:rack[3*s+j],slot:3*s+j}));}
+// orientation o: 0=0° horizontal, 1=90° vertical, 2=180° horizontal reversed, 3=270° vertical reversed ('h'/'v' = 0/1)
+function normO(o){return o==='h'?0:o==='v'?1:((o%4)+4)%4;}
+function rotateO(o){return (normO(o)+1)%4;}
+function pieceTiles(rack,s,o,r,c){o=normO(o);const vert=o%2===1,rev=o>=2;
+ return [0,1,2].map(j=>{const k=rev?2-j:j;return {r:vert?r+j:r,c:vert?c:c+j,color:rack[3*s+k],slot:3*s+k};});}
 // only rule: the straight 3-tile piece fits inside the board on 3 empty cells (anywhere, no touching / collinear rules)
 function validPiece(b,placed,tiles){const nb=withPlaced(b,placed);return tiles.every(t=>inb(t.r,t.c)&&!nb[t.r][t.c]&&t.color);}
 function group(b,r,c){const col=b[r][c].color,seen=new Set(),st=[[r,c]],out=[];
@@ -43,8 +48,8 @@ function commit(g,pl,boost){const p=g.turn;
  const res=evaluate(g.board,pl,boost);g.board=res.board;g.scores[p]+=res.score;g.pot+=Math.round(res.score/2)+100;
  const rack=g.racks[p];pl.forEach(x=>{let i=(x.slot!=null&&rack[x.slot]===x.color)?x.slot:rack.indexOf(x.color);if(i>=0)rack[i]=null;});
  endTurn(g);return res;}
-function refill(g){const r=g.racks[g.turn];for(let s=0;s<3;s++)if(!r[3*s]){for(let j=0;j<3;j++)r[3*s+j]=rnd(g.rng);g.orient[g.turn][s]='h';}}
-function swap(g){g.racks[g.turn]=deal(g.rng);g.orient[g.turn]=['h','h','h'];endTurn(g);}
+function refill(g){const r=g.racks[g.turn];for(let s=0;s<3;s++)if(!r[3*s]){piece(g.rng).forEach((t,j)=>r[3*s+j]=t);g.orient[g.turn][s]=0;}}
+function swap(g){g.racks[g.turn]=deal(g.rng);g.orient[g.turn]=[0,0,0];endTurn(g);}
 function endTurn(g){g.moves[g.turn]++;
  if(g.moves[0]>=MOVES&&g.moves[1]>=MOVES){g.over=true;const w=g.scores[0]===g.scores[1]?-1:(g.scores[0]>g.scores[1]?0:1);g.winner=w;
   if(w>=0)g.scores[w]+=g.pot;g.coins[0]+=w===0?50:10;return;}
@@ -53,7 +58,7 @@ function isFinal(g){return g.moves[g.turn]===MOVES-1;}
 // greedy bot over whole pieces (both orientations), collinear, up to 3 pieces
 function aiMove(g){const b=g.board,rack=g.racks[g.turn];let best={score:0,pl:[]};
  function cands(pl,usedSets){const out=[];for(let s=0;s<3;s++){if(usedSets.includes(s)||!rack[3*s])continue;
-  for(const o of ['h','v'])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const t=pieceTiles(rack,s,o,r,c);if(validPiece(b,pl,t))out.push({s,o,t});}}return out;}
+  for(const o of [0,1,2,3])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const t=pieceTiles(rack,s,o,r,c);if(validPiece(b,pl,t))out.push({s,o,t});}}return out;}
  const first=cands([],[]).map(x=>({x,sc:evaluate(b,x.t).score})).sort((a,b)=>b.sc-a.sc).slice(0,40);
  for(const {x} of first){let pl=x.t.slice(),used=[x.s];
   for(let k=0;k<2;k++){const sc=evaluate(b,pl).score;if(sc>best.score)best={score:sc,pl:pl.slice()};
@@ -62,6 +67,6 @@ function aiMove(g){const b=g.board,rack=g.racks[g.turn];let best={score:0,pl:[]}
   const sc=evaluate(b,pl).score;if(sc>best.score)best={score:sc,pl:pl.slice()};}
  if(best.score<=0)return {pl:[],boost:false};
  const boost=g.power[g.turn]>0&&(best.score>=120||isFinal(g));return {pl:best.pl,boost};}
-const api={pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
+const api={piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
 if(typeof module!=='undefined')module.exports=api;else root.Logic=api;
 })(this);

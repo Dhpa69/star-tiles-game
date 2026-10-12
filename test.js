@@ -8,7 +8,9 @@ a.equal(L.evaluate(b,[{r:0,c:0,color:'red'}]).score,0);
 const b3=empty();b3[4][7]={star:true};b3[6][7]={star:true};a.equal(L.evaluate(b3,[{r:5,c:7,color:'blue'}]).score,60);
 const b4=empty();b4[0][1]={color:'red'};b4[1][0]={color:'red'};a.equal(L.evaluate(b4,[{r:0,c:0,color:'red'}]).score,180);
 const st=L.evaluate(b,[{r:3,c:5,color:'star'}]);a.ok(st.score==60&&st.board[3][5].star&&st.board[3][3]===null); // star stays, reds cleared
-let k=0;for(let i=0;i<5000;i++)if(L.rnd(Math.random)==='star')k++;a.ok(k>800&&k<1200);
+let k=0;for(let i=0;i<5000;i++)if(L.rnd(Math.random)==='star')k++;a.ok(k>300&&k<520); // ~8%
+for(let i=0;i<3000;i++)a.ok(L.piece(Math.random).filter(x=>x==='star').length<=1);
+{let st=0;for(let i=0;i<3000;i++)st+=L.deal(Math.random).filter(x=>x==='star').length;a.ok(st/27000>0.06&&st/27000<0.1);}
 // wild stars: red+red+star scores; 2 placed stars + 1 colored in a line scores; 2 board stars + 1 colored scores
 a.equal(L.evaluate(b,[{r:3,c:2,color:'star'}]).score,60);
 const b6=empty();b6[1][1]={color:'green'};a.equal(L.evaluate(b6,[{r:1,c:2,color:'star'},{r:1,c:3,color:'star'}]).score,60);
@@ -39,5 +41,12 @@ a.ok(L.validPiece(pb,hz,L.pieceTiles(R,1,'h',1,3)));a.ok(L.validPiece(pb,vt,L.pi
 const far=L.newGame('ai',rng);far.board=empty();far.board[3][3]={color:'red'};const p1=L.pieceTiles(far.racks[0],0,'h',0,0),p2=L.pieceTiles(far.racks[0],1,'v',5,7);a.ok(L.validPiece(far.board,p1,p2));L.commit(far,p1.concat(p2));a.equal(far.racks[0].filter(x=>x).length,3);
 // name
 const all=['app.js','index.html','logic.js'].map(f=>fs.readFileSync(__dirname+'/'+f,'utf8')).join('');a.ok(!/dimble/i.test(all)&&/COMPUTER/.test(all));
+// 4-step rotation cycle with order reversal: R-G-B -> R/G/B -> B-G-R -> B/G/R -> R-G-B
+const RG=['red','green','blue','x','x','x','x','x','x'];let o=0;const seen=[];
+for(let i=0;i<4;i++){const t=L.pieceTiles(RG,0,o,0,0);seen.push(t.map(q=>q.color[0]+(q.r?'v':'')).join(''));o=L.rotateO(o);}
+a.deepEqual(seen,['rgb','rgvbv','bgr','bgvrv'].map((x,i)=>i==1?'rgvbv':x).length&&seen,seen);
+a.deepEqual(L.pieceTiles(RG,0,0,0,0).map(q=>q.color),['red','green','blue']);a.deepEqual(L.pieceTiles(RG,0,1,0,0).map(q=>[q.r,q.c,q.color]),[[0,0,'red'],[1,0,'green'],[2,0,'blue']]);
+a.deepEqual(L.pieceTiles(RG,0,2,0,0).map(q=>[q.r,q.c,q.color]),[[0,0,'blue'],[0,1,'green'],[0,2,'red']]);a.deepEqual(L.pieceTiles(RG,0,3,0,0).map(q=>[q.r,q.c,q.color]),[[0,0,'blue'],[1,0,'green'],[2,0,'red']]);
+a.equal(o,0);a.equal(L.rotateO(3),0);a.deepEqual(L.pieceTiles(RG,0,2,0,0).map(q=>q.slot),[2,1,0]);
 let n=0;const t0=Date.now();while(!g.over){const m=L.aiMove(g);a.ok(m.pl.length%3===0);L.commit(g,m.pl,m.boost);n++;}
 a.equal(n,20);a.deepEqual(g.moves,[10,10]);console.log('ok',g.scores,g.winner,(Date.now()-t0)+'ms');
