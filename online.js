@@ -8,12 +8,34 @@ const Online=(function(){
  const clean=c=>String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
  const rnd=()=>{const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<6;i++)s+=A[Math.floor(Math.random()*A.length)];return s;};
  function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
- function send(msg,tries){msg.from=st.id;const topic=st.topic;return fetch(RELAY+topic,{method:'POST',body:JSON.stringify(msg)}).then(r=>{if(r.status===429||!r.ok)throw new Error(r.status);st.netOk=Date.now();}).catch(e=>{st.handlers.status&&st.handlers.status(String(e.message)==='429'?'Relay busy (rate limited) – retrying…':'Connection problem – retrying…');if((tries||0)<5&&topic===st.topic)setTimeout(()=>send(msg,(tries||0)+1),String(e.message)==='429'?15000*((tries||0)+1):3000*((tries||0)+1));});}
+ function send(msg,tries){msg.from=st.id;if(msg.t!=='rtc'&&st.dc&&st.dc.readyState==='open'){try{st.dc.send(JSON.stringify(msg));st.p2pSent=(st.p2pSent||0)+1;return Promise.resolve();}catch(e){}}const topic=st.topic;return fetch(RELAY+topic,{method:'POST',body:JSON.stringify(msg)}).then(r=>{if(r.status===429||!r.ok)throw new Error(r.status);st.netOk=Date.now();}).catch(e=>{st.handlers.status&&st.handlers.status(String(e.message)==='429'?'Relay busy (rate limited) – retrying…':'Connection problem – retrying…');if((tries||0)<5&&topic===st.topic)setTimeout(()=>send(msg,(tries||0)+1),String(e.message)==='429'?15000*((tries||0)+1):3000*((tries||0)+1));});}
  // v24: two transports. SSE (fast) + fetch polling /json?poll=1&since=<last id> (reliable on iOS, where
  // EventSource dies in the background / home-screen PWA). Same handler + dedupe by ntfy message id.
  function handle(env){let d;if(!env||env.event&&env.event!=='message')return;try{d=JSON.parse(env.message);}catch(_){return;}
   if(env.id){if(st.seen.has(env.id))return;st.seen.add(env.id);st.pollId=env.id;}if(!d||d.from===st.id)return;
+  d._old=env.time&&env.time*1000<st.since-5000;if(d.t==='rtc'){if(!d._old)rtcMsg(d);return;}
+  if(d.t==='back'&&!d._old&&st.dc){rtcClose();if(!st.host)setTimeout(()=>sendSig({k:'req'}),300);} // peer came back via relay: our direct link is stale
   d._old=env.time&&env.time*1000<st.since-5000;if(!d._old)st.lastSeen=Date.now();st.lastAct=Math.max(st.lastAct||0,(env.time||0)*1000);st.handlers.msg&&st.handlers.msg(d);}
+ // ---- v25 WiFi mode: WebRTC DataChannel peer-to-peer; ntfy carries only signaling (1 offer + 1 answer, ICE bundled) ----
+ const ICE={iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
+ function gathered(pc){return new Promise(r=>{if(pc.iceGatheringState==='complete')return r();const t=setTimeout(r,2500);pc.addEventListener('icegatheringstatechange',()=>{if(pc.iceGatheringState==='complete'){clearTimeout(t);r();}});});}
+ function rtcClose(){try{st.dc&&st.dc.close();}catch(e){}try{st.pc&&st.pc.close();}catch(e){}st.dc=null;st.pc=null;if(st.p2p){st.p2p=false;st.handlers.p2p&&st.handlers.p2p(false);}}
+ function wireDC(dc){st.dc=dc;dc.onopen=()=>{st.p2p=true;st.lastSeen=Date.now();st.handlers.p2p&&st.handlers.p2p(true);try{dc.send(JSON.stringify({t:'ping',have:st.applied,from:st.id}));}catch(e){}};
+  dc.onclose=()=>{const was=st.p2p;st.p2p=false;st.dc=null;if(was){st.handlers.p2p&&st.handlers.p2p(false);clearTimeout(st.rtcT);st.rtcT=setTimeout(()=>rtcStart(),30000);}};
+  dc.onmessage=e=>{let d;try{d=JSON.parse(e.data);}catch(_){return;}if(!d||d.from===st.id)return;st.lastSeen=Date.now();st.handlers.msg&&st.handlers.msg(d);};}
+ function rtcOK(){return typeof RTCPeerConnection!=='undefined'&&st.on&&st.seed!=null;}
+ // host makes the offer; joiner asks with 'req'. Gives up quietly (relay mode) if no answer within 20s.
+ async function rtcStart(force){if(!rtcOK()||(!force&&st.dc&&st.dc.readyState==='open'))return;if(!st.host){sendSig({k:'req'});return;}
+  st.offerAt=Date.now();rtcClose();const pc=new RTCPeerConnection(ICE),sid=Math.random().toString(36).slice(2,8);st.pc=pc;st.sid=sid;wireDC(pc.createDataChannel('game',{ordered:true}));
+  try{await pc.setLocalDescription(await pc.createOffer());await gathered(pc);if(st.pc!==pc)return;st.offerAt=Date.now();sendSig({k:'offer',sid,sdp:pc.localDescription.sdp});}catch(e){return;}
+  clearTimeout(st.rtcGive);st.rtcGive=setTimeout(()=>{if(st.pc===pc&&!st.p2p)rtcClose();},20000);}
+ async function rtcAnswer(d){if(typeof RTCPeerConnection==='undefined')return;rtcClose();const pc=new RTCPeerConnection(ICE);st.pc=pc;st.sid=d.sid;pc.ondatachannel=e=>wireDC(e.channel);
+  try{await pc.setRemoteDescription({type:'offer',sdp:d.sdp});await pc.setLocalDescription(await pc.createAnswer());await gathered(pc);if(st.pc!==pc)return;sendSig({k:'answer',sid:d.sid,sdp:pc.localDescription.sdp});}catch(e){}}
+ function sendSig(o){o.t='rtc';st.rtcSig=(st.rtcSig||0)+1;send(o);}
+ function rtcMsg(d){if(d.k==='req'&&st.host&&st.dc&&st.dc.readyState==='open'){rtcClose();}
+  if(d.k==='req'&&st.host&&!(st.pc&&st.pc.signalingState==='have-local-offer'&&Date.now()-st.offerAt<8000)){clearTimeout(st.rtcDeb);st.rtcDeb=setTimeout(()=>rtcStart(true),300);} // peer asked = it has no link (e.g. it reloaded)
+  else if(d.k==='offer'&&!st.host)rtcAnswer(d);
+  else if(d.k==='answer'&&st.host&&st.pc&&d.sid===st.sid&&st.pc.signalingState==='have-local-offer')st.pc.setRemoteDescription({type:'answer',sdp:d.sdp}).catch(()=>{});}
  const status=t=>{st.handlers.status&&st.handlers.status(t);};
  function openSSE(){try{if(st.es)st.es.close();}catch(e){}if(typeof EventSource==='undefined')return;st.es=new EventSource(RELAY+st.topic+'/sse?since=all');
   st.es.onopen=()=>{st.sseOk=true;st.netOk=Date.now();};st.es.onmessage=e=>{let env;try{env=JSON.parse(e.data);}catch(_){return;}handle(env);};
@@ -70,11 +92,12 @@ const Online=(function(){
   join(code,name,coins,h){Object.assign(st,{on:true,host:false,me:1,code:clean(code),applied:0,log:[],seed:null,handlers:h});st.topic='startiles-room-'+st.code;st.id=Math.random().toString(36).slice(2,10);st.seen=new Set();st.lastAct=Date.now();listen();persist();send({t:'hello',name,coins});},
   resume(s,h){Object.assign(st,{on:true,host:s.host,me:s.me,code:s.code,id:s.id,applied:(s.log||[]).length,log:(s.log||[]).slice(),seed:s.seed,lastAct:s.lastAct||0,names:s.names,coins:s.coins,handlers:h});st.topic='startiles-room-'+st.code;
    st.seen=new Set();listen();send({t:'back',have:st.applied});},
-  setGame(seed,names,coins){st.seed=seed;st.names=names;st.coins=coins;persist();},
+  setGame(seed,names,coins){st.seed=seed;st.names=names;st.coins=coins;persist();clearTimeout(st.rtcT);st.rtcT=setTimeout(rtcStart,st.host?1500:500);},
+  rtcStart,rtcClose,
   start(seed,names,coins){send({t:'start',seed,names,coins});},
   act(a){const n=st.applied;st.applied++;st.log.push(a);st.lastAct=Date.now();persist();send({t:'act',n,a});},
   record(a){st.applied++;st.log.push(a);persist();},
   resend(from){for(let n=from;n<st.log.length;n++)send({t:'act',n,a:st.log[n]});},
   ping(t){if(st.on)send({t:t||'ping',have:st.applied});},
-  leave(){if(st.es)st.es.close();st.es=null;st.on=false;clearTimeout(st.loopT);}};
+  leave(){rtcClose();clearTimeout(st.rtcT);if(st.es)st.es.close();st.es=null;st.on=false;clearTimeout(st.loopT);}};
 })();
