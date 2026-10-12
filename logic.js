@@ -1,6 +1,6 @@
 (function(root){
 const COLORS=['yellow','green','blue','pink','red','orange'];
-const N=8, MOVES=10, RACK=9;
+const N=8, MOVES=10, RACK=9, START_COINS=100, WIN_COINS=10, EXTRA_COST=50; // economy: 1 free swap + 2 free power-ups per game, extras cost 50 coins, +10 coins per win only
 function mult(r,c){ if((r==0||r==N-1)&&(c==0||c==N-1)) return 3; if((r==2||r==5)&&(c==2||c==5)) return 2; return 1;}
 function rnd(rng){return rng()<0.08?'star':COLORS[Math.floor(rng()*COLORS.length)];}
 function rndColor(rng){return COLORS[Math.floor(rng()*COLORS.length)];}
@@ -9,7 +9,7 @@ function deal(rng){return [].concat(piece(rng),piece(rng),piece(rng));}
 function newGame(mode,rng){rng=rng||Math.random;
  const b=[];for(let r=0;r<N;r++){b.push([]);for(let c=0;c<N;c++)b[r].push(null);}
  [[3,3],[3,4],[4,3],[4,4]].forEach(([r,c])=>b[r][c]={color:rndColor(rng)});
- return {orient:[[0,0,0],[0,0,0]],board:b,mode,turn:0,moves:[0,0],scores:[0,0],pot:1000,racks:[deal(rng),deal(rng)],power:[2,2],coins:[729,0],over:false,rng};}
+ return {orient:[[0,0,0],[0,0,0]],board:b,mode,turn:0,moves:[0,0],scores:[0,0],pot:1000,racks:[deal(rng),deal(rng)],power:[2,2],swaps:[1,1],coins:[START_COINS,mode==='ai'?0:START_COINS],over:false,rng};}
 const inb=(r,c)=>r>=0&&c>=0&&r<N&&c<N;
 function canPlace(b,r,c){ if(!inb(r,c)||b[r][c])return false;
  if(b.every(row=>row.every(t=>!t)))return true; // empty board: anywhere
@@ -50,29 +50,61 @@ function evaluate(b,pl,boost){const nb=b.map(row=>row.map(t=>t&&{...t}));let sco
  for(const p of pops)nb[p.r][p.c]=null; // scored colored tiles are cleared; stars stay
  nb.forEach(r=>r.forEach(t=>t&&delete t.fresh));if(boost)score*=2;return {score,board:nb,cleared,pops};}
 function commit(g,pl,boost){const p=g.turn;
- if(boost){if(g.power[p]<1)boost=false;else g.power[p]--;}
+ if(boost){if(!canPower(g))boost=false;else usePower(g);}
  const res=evaluate(g.board,pl,boost);g.board=res.board;g.scores[p]+=res.score;g.pot+=Math.round(res.score/2)+100;
  const rack=g.racks[p];pl.forEach(x=>{let i=(x.slot!=null&&rack[x.slot]===x.color)?x.slot:rack.indexOf(x.color);if(i>=0)rack[i]=null;});
  endTurn(g);return res;}
 function refill(g){const r=g.racks[g.turn];for(let s=0;s<3;s++)if(!r[3*s]){piece(g.rng).forEach((t,j)=>r[3*s+j]=t);g.orient[g.turn][s]=0;}}
-function swap(g){g.racks[g.turn]=deal(g.rng);g.orient[g.turn]=[0,0,0];endTurn(g);}
-function endTurn(g){g.moves[g.turn]++;
+function canSwap(g){return g.swaps[g.turn]>0||g.coins[g.turn]>=EXTRA_COST;}
+function swap(g){if(!canSwap(g))return false;if(g.swaps[g.turn]>0)g.swaps[g.turn]--;else g.coins[g.turn]-=EXTRA_COST;g.racks[g.turn]=deal(g.rng);g.orient[g.turn]=[0,0,0];endTurn(g);return true;}
+function endTurn(g){g.moves[g.turn]++;g.usedPower=false;
  if(g.moves[0]>=MOVES&&g.moves[1]>=MOVES){g.over=true;const w=g.scores[0]===g.scores[1]?-1:(g.scores[0]>g.scores[1]?0:1);g.winner=w;
-  if(w>=0)g.scores[w]+=g.pot;g.coins[0]+=w===0?50:10;return;}
+  if(w>=0)g.scores[w]+=g.pot;if(w>=0)g.coins[w]+=WIN_COINS;return;}
  g.turn=1-g.turn;refill(g);}
 function isFinal(g){return g.moves[g.turn]===MOVES-1;}
-// greedy bot over whole pieces (both orientations), collinear, up to 3 pieces
-function aiMove(g){const b=g.board,rack=g.racks[g.turn];let best={score:0,pl:[]};
+// bot search over whole pieces (all 4 orientations); beam = how many first pieces to extend; deadline caps time
+function aiMove(g,opt){opt=opt||{};const beam=opt.beam||40,maxP=opt.maxPieces||3,t0=Date.now(),dl=opt.ms||600;
+ const b=g.board,rack=g.racks[g.turn];let best={score:0,val:0,pl:[]};
+ const starCost=pl=>opt.saveStars?pl.filter(t=>t.color==='star').length*15:0;
  function cands(pl,usedSets){const out=[];for(let s=0;s<3;s++){if(usedSets.includes(s)||!rack[3*s])continue;
   for(const o of [0,1,2,3])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const t=pieceTiles(rack,s,o,r,c);if(validPiece(b,pl,t))out.push({s,o,t});}}return out;}
- const first=cands([],[]).map(x=>({x,sc:evaluate(b,x.t).score})).sort((a,b)=>b.sc-a.sc).slice(0,40);
- for(const {x} of first){let pl=x.t.slice(),used=[x.s];
-  for(let k=0;k<2;k++){const sc=evaluate(b,pl).score;if(sc>best.score)best={score:sc,pl:pl.slice()};
-   let nx=null,ns=0;for(const c of cands(pl,used)){const v=evaluate(b,pl.concat(c.t)).score;if(v>ns){ns=v;nx=c;}}
+ const consider=pl=>{const sc=evaluate(b,pl).score,v=sc-starCost(pl);if(sc>0&&v>best.val)best={score:sc,val:v,pl:pl.slice()};return sc;};
+ const first=cands([],[]).map(x=>({x,sc:evaluate(b,x.t).score})).sort((a,b)=>b.sc-a.sc).slice(0,beam);
+ for(const {x} of first){if(Date.now()-t0>dl)break;let pl=x.t.slice(),used=[x.s];
+  for(let k=1;k<maxP;k++){const sc=consider(pl);let nx=null,ns=0;for(const c of cands(pl,used)){const v=evaluate(b,pl.concat(c.t)).score;if(v>ns){ns=v;nx=c;}}
    if(!nx||ns<=sc)break;pl=pl.concat(nx.t);used.push(nx.s);}
-  const sc=evaluate(b,pl).score;if(sc>best.score)best={score:sc,pl:pl.slice()};}
- if(best.score<=0)return {pl:[],boost:false};
- const boost=g.power[g.turn]>0&&(best.score>=120||isFinal(g));return {pl:best.pl,boost};}
-const api={movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
+  consider(pl);}
+ if(best.score<=0)return {pl:[],boost:false,score:0};
+ const boost=canPower(g)&&(best.score>=(opt.boostAt||120)||isFinal(g));return {pl:best.pl,boost,score:best.score};}
+// ---- power-ups: 2 uses per player per game, shared across DOUBLE / BOMB / CROSS, max 1 per move ----
+function canPower(g){return !g.usedPower&&(g.power[g.turn]>0||g.coins[g.turn]>=EXTRA_COST);}
+function powerCost(g){return g.power[g.turn]>0?0:EXTRA_COST;}
+function usePower(g){if(g.power[g.turn]>0)g.power[g.turn]--;else g.coins[g.turn]-=EXTRA_COST;g.usedPower=true;}
+function blastCells(type,r,c){const out=[];
+ if(type==='bomb'){for(let y=r-1;y<=r+1;y++)for(let x=c-1;x<=c+1;x++)if(inb(y,x))out.push([y,x]);}
+ else if(type==='cross'){for(let i=0;i<N;i++){out.push([r,i]);if(i!==r)out.push([i,c]);}}
+ return out;}
+// clears EVERY committed tile in the area, stars included (the one way stars are removed); scores nothing
+function blast(g,type,r,c){if(!canPower(g))return null;const pops=[];
+ for(const [y,x] of blastCells(type,r,c)){const t=g.board[y][x];if(t){pops.push({r:y,c:x,color:t.star?'star':t.color});g.board[y][x]=null;}}
+ usePower(g);return {pops,cells:blastCells(type,r,c)};}
+function countFits(g){const rack=g.racks[g.turn];let n=0;for(let s=0;s<3;s++){if(!rack[3*s])continue;for(const o of [0,1])for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(validPiece(g.board,[],pieceTiles(rack,s,o,r,c)))n++;}return n;}
+// bot turn: blast when crowded, then greedy move (may double if no blast used)
+const LEVELS={easy:{beam:3,maxPieces:1,ms:200},medium:{beam:40,maxPieces:3,ms:600},hard:{beam:400,maxPieces:3,ms:450,saveStars:true,boostAt:200}};
+function aiPlan(g,level){level=level||'medium';const opt=LEVELS[level]||LEVELS.medium,rng=g.rng||Math.random;
+ if(level==='easy'){ // often a random weak move, 1 piece, rarely power-ups
+  if(rng()<0.5){const rack=g.racks[g.turn],opts=[];for(let s=0;s<3;s++){if(!rack[3*s])continue;for(const o of [0,1])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const t=pieceTiles(rack,s,o,r,c);if(validPiece(g.board,[],t))opts.push(t);}}
+   return {blast:null,pl:opts.length&&rng()<0.7?opts[Math.floor(rng()*opts.length)]:[],boost:false};}
+  const m=aiMove(g,opt);return {blast:null,pl:m.pl,boost:m.boost&&rng()<0.15};}
+ if(level==='hard'&&canPower(g)){ // compare: blast-then-move vs move (with double)
+  const plain=aiMove(g,opt);let bestB=null;
+  if(countFits(g)<20){for(const type of ['cross','bomb'])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const n=blastCells(type,r,c).filter(([y,x])=>g.board[y][x]&&!g.board[y][x].star).length-blastCells(type,r,c).filter(([y,x])=>g.board[y][x]&&g.board[y][x].star).length*2;if(!bestB||n>bestB.n)bestB={type,r,c,n};}}
+  if(bestB&&bestB.n>=4&&plain.score<120){const bl={type:bestB.type,r:bestB.r,c:bestB.c,...blast(g,bestB.type,bestB.r,bestB.c)};const m=aiMove(g,opt);return {blast:bl,pl:m.pl,boost:false};}
+  return {blast:null,pl:plain.pl,boost:plain.boost};}
+ let bl=null;
+ if(canPower(g)&&countFits(g)<12){let best=null;for(const type of ['cross','bomb'])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const n=blastCells(type,r,c).filter(([y,x])=>g.board[y][x]).length;if(!best||n>best.n)best={type,r,c,n};}
+  if(best&&best.n>=3){bl={type:best.type,r:best.r,c:best.c,...blast(g,best.type,best.r,best.c)};}}
+ const m=aiMove(g,opt);return {blast:bl,pl:m.pl,boost:m.boost};}
+const api={START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
 if(typeof module!=='undefined')module.exports=api;else root.Logic=api;
 })(this);

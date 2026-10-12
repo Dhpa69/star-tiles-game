@@ -1,7 +1,7 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>Star Tiles</title><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="theme-color" content="#1b3f8f">
-<link rel="stylesheet" href="style.css?v=10"></head><body>
+<link rel="stylesheet" href="style.css?v=11"></head><body>
 <div id="app">
 <header><button class="btn sq" id="menuBtn">👥</button>
 <div id="hud"><div class="names"><span id="n0" class="p0">DHAVAL P</span><span class="vs">·VS·</span><span id="n1">COMPUTER</span></div>
@@ -12,11 +12,20 @@
 <div id="banner">MOVE 1 / 10</div>
 <footer><button class="btn" id="recall">▦<br>RECALL</button>
 <button class="btn" id="power">⚡<span id="badge">2</span></button>
-<div id="coins">YOUR COINS:<br><b>🪙 <span id="coinN">729</span></b></div>
-<button class="btn" id="swap">⇄<br>SWAP</button><button class="btn" id="play">▶<br>PLAY</button></footer>
-<div id="overlay" class="show"><div class="card"><h1>⭐ Star Tiles</h1><p id="msg">It takes 3 to score: connect 3+ same-color tiles to score and clear them. Stars from your rack are wild and permanent. Drag your 3-tile pieces onto the board (tap again or ↻ to rotate). Place 0–3 pieces anywhere they fit on empty squares, then PLAY. 10 moves each — biggest score takes the pot!</p>
-<button class="btn big" id="vsAI">Play vs COMPUTER</button><button class="btn big" id="vsP">Pass &amp; Play (2 players)</button><div id="ver">v10</div></div></div>
-</div><script src="logic.js?v=10"></script><script src="app.js?v=10"></script>
+<div id="coins">YOUR COINS:<br><b>🪙 <span id="coinN">100</span></b></div>
+<button class="btn" id="swap">⇄<br>SWAP<span id="swapc" class="cost">FREE</span></button><button class="btn" id="play">▶<br>PLAY</button></footer>
+<div id="pmenu"><div class="pcard"><div class="ptitle">⚡ POWER-UPS <span id="pleft"></span></div>
+<button class="btn big" data-p="double">✖2 DOUBLE POINTS<small>Doubles this move's score</small></button>
+<button class="btn big" data-p="bomb">💣 BOMB<small>Clears a 3×3 area</small></button>
+<button class="btn big" data-p="cross">✚ CROSS BLAST<small>Clears a whole row + column</small></button>
+<button class="btn big cancel" data-p="cancel">Cancel</button></div></div>
+<div id="tbar"><span id="tmsg">Tap a target square</span><button class="btn" id="tgo" disabled>BLAST!</button><button class="btn cancel" id="tno">Cancel</button></div>
+<div id="overlay" class="show"><div class="card"><h1>⭐ Star Tiles</h1><p id="msg">It takes 3 to score: connect 3+ same-color tiles to score and clear them. Stars from your rack are wild and permanent. Drag your 3-tile pieces onto the board (tap again or ↻ to rotate). Place 0–3 pieces anywhere they fit on empty squares, then PLAY. ⚡ Power-ups (2 per game, 1 per move): Double Points, Bomb (3×3) or Cross Blast (row + column). Blasts clear everything in the area, even stars, but score nothing. Coins: start with 100, win = +10. Each game has 1 free swap and 2 free power-ups; extra swaps or power-ups cost 50 coins. 10 moves each — biggest score takes the pot!</p>
+<label class="pname">Your name <input id="pname" maxlength="14" placeholder="Enter your name" autocomplete="off"></label>
+<div class="pstat" id="pstat"></div>
+<div class="diff" id="diff"><button data-d="easy">EASY</button><button data-d="medium">MEDIUM</button><button data-d="hard">HARD</button></div>
+<button class="btn big" id="vsAI">Play vs COMPUTER</button><button class="btn big" id="vsP">Pass &amp; Play (2 players)</button><div id="ver">v11</div></div></div>
+</div><script src="logic.js?v=11"></script><script src="app.js?v=11"></script>
 <script>
 if('serviceWorker'in navigator){let reloaded=false;const had=!!navigator.serviceWorker.controller;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloaded||!had)return;reloaded=true;location.reload();});

@@ -58,5 +58,38 @@ a.equal(o,0);a.equal(L.rotateO(3),0);a.deepEqual(L.pieceTiles(RG,0,2,0,0).map(q=
  const r2=L.rotateInPlace(B,RR,[],0,1,4,4);a.ok(r2.o===2&&r2.tiles.map(q=>q.color).join()=='blue,green,red');
  {const e7=L.rotateInPlace(B,RR,[],0,0,7,5);a.ok(e7&&e7.tiles.every(q=>q.r<8)&&e7.tiles[2].r===7);}
  {let o=0,r=3,c=3;const E=empty();for(let i=0;i<4;i++){const x=L.rotateInPlace(E,RR,[],0,o,r,c);o=x.o;r=x.r;c=x.c;a.deepEqual(x.tiles[1].r*8+x.tiles[1].c,3*8+4);}a.equal(o,0);a.deepEqual([r,c],[3,3]);}}
-let n=0;const t0=Date.now();while(!g.over){const m=L.aiMove(g);a.ok(m.pl.length%3===0);L.commit(g,m.pl,m.boost);n++;}
-a.equal(n,20);a.deepEqual(g.moves,[10,10]);console.log('ok',g.scores,g.winner,(Date.now()-t0)+'ms');
+// power-ups
+{const P=L.newGame('ai',rng);P.board=empty();
+ a.equal(L.blastCells('bomb',4,4).length,9);a.equal(L.blastCells('bomb',0,0).length,4);a.equal(L.blastCells('bomb',0,4).length,6);
+ const cr=L.blastCells('cross',2,5);a.equal(cr.filter(([y])=>y===2).length,8);a.equal(cr.filter(([,x])=>x===5).length,8);a.equal(cr.length,15);
+ for(let c=0;c<8;c++)P.board[3][c]={color:'red'};P.board[3][2]={star:true};P.board[0][4]={color:'blue'};P.board[6][6]={color:'green'};
+ const sc=P.scores[0],res=L.blast(P,'cross',3,4);a.equal(res.pops.length,9);a.equal(P.board[3][2],null);a.equal(P.board[3][0],null);a.equal(P.board[0][4],null);a.ok(P.board[6][6]);a.equal(P.scores[0],sc); // stars destroyed too, no score
+ a.equal(P.power[0],1);a.equal(L.blast(P,'bomb',6,6),null); // once per move
+ L.commit(P,[]);L.commit(P,[]); // back to player 0
+ P.board[1][1]={color:'pink'};P.board[0][0]={star:true};const rb=L.blast(P,'bomb',0,0);a.ok(rb&&P.board[0][0]===null&&!P.board[1][1]);a.equal(P.power[0],0);
+ L.commit(P,[]);L.commit(P,[]);P.coins[0]=0;a.equal(L.blast(P,'bomb',4,4),null);a.equal(L.canPower(P),false); // 2 total across types
+ const Q=L.newGame('ai',rng);a.equal(Q.power[0],2);a.ok(L.canPower(Q)); // cancel = never calling blast -> nothing consumed
+ const D=L.newGame('ai',rng);D.board=empty();D.board[1][3]={color:'red'};D.board[1][4]={color:'red'};
+ const r1=L.commit(D,[{r:1,c:5,color:'red'}],true);a.equal(r1.score,120);a.equal(D.power[0],1);
+ L.commit(D,[]);L.blast(D,'bomb',5,5);D.board[1][3]={color:'red'};D.board[1][4]={color:'red'};const r2=L.commit(D,[{r:1,c:5,color:'red'}],true);a.equal(r2.score,60); // double refused after blast same move
+ a.equal(D.power[0],0);}
+let n=0;const t0=Date.now();while(!g.over){const m=L.aiPlan(g);a.ok(m.pl.length%3===0);L.commit(g,m.pl,m.boost);n++;}
+a.equal(n,20);a.deepEqual(g.moves,[10,10]);
+// economy
+{const E=L.newGame('pvp',rng);a.deepEqual(E.coins,[100,100]);a.equal(L.newGame('ai',rng).coins[0],100);
+ a.ok(L.swap(E));a.equal(E.coins[0],100);L.commit(E,[]); // p0 free swap
+ a.ok(L.swap(E));a.equal(E.coins[0],50);L.commit(E,[]);E.coins[0]=40;a.equal(L.canSwap(E),false);a.equal(L.swap(E),false); // extra swap 50, blocked when broke
+ const F=L.newGame('pvp',rng);F.board=empty();L.blast(F,'bomb',1,1);L.commit(F,[]);L.commit(F,[]);L.blast(F,'bomb',1,1);L.commit(F,[]);L.commit(F,[]);
+ a.equal(F.power[0],0);a.equal(F.coins[0],100);a.equal(L.powerCost(F),50);a.ok(L.blast(F,'cross',2,2));a.equal(F.coins[0],50); // 3rd power-up costs 50
+ L.commit(F,[]);L.commit(F,[]);a.ok(L.blast(F,'cross',2,2));a.equal(F.coins[0],0);L.commit(F,[]);L.commit(F,[]);a.equal(L.canPower(F),false);
+ const W=L.newGame('ai',rng);W.board=empty();W.board[1][3]={color:'red'};W.board[1][4]={color:'red'};L.commit(W,[{r:1,c:5,color:'red'}]);while(!W.over)L.commit(W,[]);
+ a.equal(W.winner,0);a.equal(W.coins[0],110);
+ const X=L.newGame('ai',rng);X.turn=1;X.board=empty();X.board[1][3]={color:'red'};X.board[1][4]={color:'red'};L.commit(X,[{r:1,c:5,color:'red'}]);while(!X.over)L.commit(X,[]);
+ a.equal(X.winner,1);a.equal(X.coins[0],100);} // no coins for a loss
+// difficulty: average self-play score per level (same seeds), HARD >= MEDIUM >= EASY; hard move time capped
+function play(level,seed){let s=seed;const r=()=>(s=(s*16807)%2147483647)/2147483647;const G=L.newGame('ai',r);let tot=0,worst=0;
+ while(!G.over){const t=Date.now(),m=L.aiPlan(G,level);worst=Math.max(worst,Date.now()-t);const before=G.scores[G.turn];L.commit(G,m.pl,m.boost);}
+ return {avg:(G.scores[0]+G.scores[1]-G.pot)/2,worst};}
+const avg={};let worstHard=0;for(const lv of ['easy','medium','hard']){let t=0;for(let i=1;i<=4;i++){const p=play(lv,i*7919);t+=p.avg;if(lv==='hard')worstHard=Math.max(worstHard,p.worst);}avg[lv]=t/4;}
+a.ok(avg.hard>=avg.medium&&avg.medium>=avg.easy,JSON.stringify(avg));a.ok(worstHard<1500,'hard too slow '+worstHard);
+console.log('ok',g.scores,g.winner,(Date.now()-t0)+'ms',JSON.stringify(avg),'hard worst move',worstHard+'ms');
