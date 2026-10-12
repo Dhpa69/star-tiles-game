@@ -45,7 +45,9 @@ function group(b,r,c){const col=b[r][c].color,seen=new Set(),st=[[r,c]],out=[];
   if(t.color!==col)continue;out.push([y,x]);st.push([y+1,x],[y-1,x],[y,x+1],[y,x-1]);}return out;}
 function evaluate(b,pl,boost){const nb=b.map(row=>row.map(t=>t&&{...t}));let score=0;const seeds=[];
  for(const p of pl){nb[p.r][p.c]=p.color==='star'?{star:true,fresh:true,mult:mult(p.r,p.c)}:{color:p.color};}
- for(const p of pl){if(p.color!=='star'){seeds.push(p);continue;}for(const [y,x] of [[p.r+1,p.c],[p.r-1,p.c],[p.r,p.c+1],[p.r,p.c-1]])if(inb(y,x)&&nb[y][x]&&!nb[y][x].star)seeds.push({r:y,c:x});}
+ // v28: every colored tile on the board is a seed, so ANY connected group of 3+ (stars wild, chaining through stars)
+ // scores, even when the new tile only touches it through other stars. Star-only groups (no color) never score.
+ for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(nb[y][x]&&!nb[y][x].star)seeds.push({r:y,c:x});
  let cleared=0,groups=0;const done=new Set(),pops=[];
  for(const p of seeds){if(nb[p.r][p.c].star||done.has(p.r*N+p.c))continue;const g=group(nb,p.r,p.c);g.forEach(([y,x])=>{if(!nb[y][x].star)done.add(y*N+x)});
   if(g.length>=3){const ns=g.filter(([y,x])=>nb[y][x].star).length,cnt=g.length-ns+Math.min(ns,2);let m=1;g.forEach(([y,x])=>{m*=mult(y,x);});let s=20*cnt*m;if(cnt>=5)s*=2; // every multiplier square in the group multiplies; 5+ tiles x2; at most 2 stars count toward points
