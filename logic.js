@@ -49,15 +49,15 @@ function evaluate(b,pl,boost){const nb=b.map(row=>row.map(t=>t&&{...t}));let sco
  // v28: every colored tile on the board is a seed, so ANY connected group of 3+ (stars wild, chaining through stars)
  // scores, even when the new tile only touches it through other stars. Star-only groups (no color) never score.
  for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(nb[y][x]&&!nb[y][x].star)seeds.push({r:y,c:x});
- let cleared=0,groups=0,starGroups=0;const sizes=[];const done=new Set(),pops=[];
+ let cleared=0,groups=0,starGroups=0;const starCol={},gd=[];const sizes=[];const done=new Set(),pops=[];
  for(const p of seeds){if(nb[p.r][p.c].star||done.has(p.r*N+p.c))continue;const g=group(nb,p.r,p.c);g.forEach(([y,x])=>{if(!nb[y][x].star)done.add(y*N+x)});
   if(g.length>=3){const ns=g.filter(([y,x])=>nb[y][x].star).length,cnt=g.length-ns+Math.min(ns,2);let m=1;g.forEach(([y,x])=>{m*=mult(y,x);});let s=RV===1?20*cnt*m*(cnt>=5?2:1):20*g.length*m; // v36 rules (RV 2): every tile incl. all stars, no 5+ bonus // every multiplier square in the group multiplies; 5+ tiles x2; at most 2 stars count toward points
-   score+=s;groups++;sizes.push(g.length);if(ns>0)starGroups++;
+   score+=s;groups++;sizes.push(g.length);if(ns>0)starGroups++;gd.push({color:nb[p.r][p.c].color,n:g.length,stars:ns,mults:g.map(([y,x])=>mult(y,x)).filter(k=>k>1),cells:g.filter(([y,x])=>!nb[y][x].star).map(([y,x])=>({r:y,c:x,color:nb[y][x].color})),s});{const col=nb[p.r][p.c].color;g.forEach(([y,x])=>{if(nb[y][x].star){const k=y*N+x;(starCol[k]=starCol[k]||[]).includes(col)||starCol[k].push(col);}});}
    g.forEach(([y,x])=>{if(!nb[y][x].star){cleared++;pops.push({r:y,c:x,color:nb[y][x].color});}});}}
  for(const p of pops)nb[p.r][p.c]=null; // scored colored tiles are cleared; stars stay
  nb.forEach(r=>r.forEach(t=>t&&delete t.fresh));if(RV===1&&groups>1)score*=groups; // v36: no combo multiplier (old games RV 1 keep it) // combo: N groups in one move multiply the total by N
  const B=norm(boost);score*=Math.pow(2,B.d)*Math.pow(3,B.t); // stacked Doubles x2^d and Triples x3^t
- return {score,board:nb,cleared,pops,groups,sizes,starGroups,doubles:B.d,triples:B.t,factor:Math.pow(2,B.d)*Math.pow(3,B.t)};}
+ return {score,board:nb,cleared,pops,groups,sizes,starGroups,gd,stars:Object.keys(starCol).map(k=>({r:Math.floor(k/N),c:k%N,colors:starCol[k]})),doubles:B.d,triples:B.t,factor:Math.pow(2,B.d)*Math.pow(3,B.t)};}
 // boost formats: true / number (old saves & online: count of Doubles) or {d,t}
 function norm(b){if(!b)return {d:0,t:0};if(b===true)return {d:1,t:0};if(typeof b==='number')return {d:b|0,t:0};return {d:b.d|0,t:b.t|0};}
 function capB(g,b){const B=norm(b),ch=charges(g),d=Math.min(B.d,ch),t=Math.min(B.t,ch-d);return {d,t};}

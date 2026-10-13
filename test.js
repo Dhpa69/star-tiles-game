@@ -185,3 +185,8 @@ console.log('ui scripts parse ok');
  // progress not over-counted for not-done
  const u=M.ensure(null,new Date(2026,9,13));const done=M.track(u,{type:'move',score:10,cleared:1,sizes:[3],starGroups:0});a.ok(Array.isArray(done));
  console.log('v37 ok');}
+// v38: evaluate reports per-star set colors (shared star -> both colors); scoring unchanged
+{const a=require('assert');const G=L.newGame('pvp');G.rv=2;G.board=Array.from({length:8},()=>Array(8).fill(null));
+ G.board[3][3]={star:true};G.board[6][6]={star:true};G.board[3][1]={color:'red'};G.board[3][5]={color:'yellow'};G.board[3][6]={color:'yellow'};
+ const pv=L.previewMove(G,[{r:3,c:2,color:'red'},{r:2,c:2,color:'red'},{r:3,c:4,color:'yellow'}],false);
+ const s=pv.stars.find(q=>q.r===3&&q.c===3);a.ok(s);a.deepStrictEqual(s.colors.slice().sort(),['red','yellow']);a.ok(!pv.stars.some(q=>q.r===6));a.strictEqual(pv.score,4*20*2+4*20);console.log('v38 ok');}
