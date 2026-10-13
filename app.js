@@ -36,7 +36,7 @@ function firstFree(){const r=g.racks[g.turn];for(let s=0;s<3;s++)if(r[3*s]&&!use
 function tilesAt(s,r,c){return L.pieceTiles(g.racks[g.turn],s,g.orient[g.turn][s],r,c);}
 function render(){setTimeout(fit,0);clearTimeout(render.sv);render.sv=setTimeout(autosave,50);const b=show?show.board:cur(),bd=$('board');bd.innerHTML='';
  const pvTiles=placed().concat(ghost&&ghost.ok?ghost.tiles:[]),pv=L.previewMove(g,pvTiles,boost),willSet=new Set(pv.pops.map(q=>q.r*8+q.c));
- const pe=$('prev');const fx=pv.factor||1;pe.textContent='This move: +'+pv.score+(fx>1?' (⚡x'+fx+')':'');const showPv=human()&&!aim&&(pvTiles.length||boost);pe.className='';const pp=$('potprev');pp.textContent=showPv?'+'+pv.score+(fx>1?' x'+fx:''):'—';pp.className=showPv?(pv.score?'hot':'zero'):'';if(tally){pp.textContent=tally.txt;pp.className='hot tally';}
+ const pe=$('prev');const fx=pv.factor||1;pe.textContent='This move: +'+pv.score+(fx>1?' (⚡x'+fx+')':'');const showPv=human()&&!aim&&(pvTiles.length||boost);pe.className='';const pp=$('potprev');pp.textContent=showPv?'+'+pv.score+(fx>1?' x'+fx:''):'—';pp.className=showPv?(pv.score?'hot':'zero'):'';{const tl=$('tally');if(tally){pp.textContent=tally.head||'…';pp.className='hot';tl.textContent=tally.txt;tl.className='on';tl.dataset.c=tally.col||'mix';tl.style.setProperty('--tc',GLOW[tally.col]||'#fff');}else if(tl.className){tl.textContent='';tl.className='';}}
  const aimSet=new Set(aim&&aim.r!=null?L.blastCells(aim.type,aim.r,aim.c).map(([y,x])=>y*8+x):[]),fxSet=new Set(blastFx.map(([y,x])=>y*8+x));
  const gk=ghost?new Set(ghost.tiles.map(t=>t.r*8+t.c)):new Set();
  for(let r=0;r<8;r++)for(let c=0;c<8;c++){const d=document.createElement('div'),m=L.mult(r,c);d.className='cell'+(m>1?' m'+m:'');d.dataset.r=r;d.dataset.c=c;const t=b[r][c];
@@ -386,14 +386,14 @@ function scoreShow(res,who,done){const gd=(res.gd||[]).filter(x=>x.n>=3);
  tally={who,base,txt:'+0',end:null,t0};render();
  let sum=0;
  gd.forEach((G,gi)=>{let gs=0;const parts=[...G.cells.map(c=>({...c})),...Array(G.stars).fill(null)];
-  parts.forEach((c,k)=>{at(t,()=>{gs+=20;tally.txt=(sum?fmt(sum)+' + ':'')+fmt(gs);if(c){const q=pops.find(q=>q.r===c.r&&q.c===c.c);if(q){q.at=performance.now()-t0;burst1(c,run);}}SFX.pop(run++);render();});t+=step;});
-  let cur=G.n*20,txt=fmt(cur);G.mults.forEach(m=>{at(t,()=>{cur*=m;txt+=' ×'+m;tally.txt=(sum?fmt(sum)+' + ':'')+txt;SFX.mult(m,run++);shake(m>2?6:3);render();});t+=mStep;});
+  parts.forEach((c,k)=>{at(t,()=>{gs+=20;tally.col=c?G.color:'mix';tally.txt=(sum?fmt(sum)+' + ':'')+fmt(gs);if(c){const q=pops.find(q=>q.r===c.r&&q.c===c.c);if(q){q.at=performance.now()-t0;burst1(c,run);}}SFX.pop(run++);render();});t+=step;});
+  let cur=G.n*20,txt=fmt(cur);G.mults.forEach(m=>{at(t,()=>{tally.col=G.color;cur*=m;txt+=' ×'+m;tally.txt=(sum?fmt(sum)+' + ':'')+txt;SFX.mult(m,run++);shake(m>2?6:3);render();});t+=mStep;});
   if(G.mults.length){at(t,()=>{tally.txt=(sum?fmt(sum)+' + ':'')+txt+' = '+fmt(G.s);render();});t+=mStep;}
-  at(t,()=>{sum+=G.s;tally.txt=fmt(sum);render();});t+=120;});
+  at(t,()=>{sum+=G.s;tally.head='+'+fmt(sum);tally.txt=fmt(sum);tally.col=gd.length>1?'mix':G.color;render();});t+=120;});
  const groupSum=gd.reduce((s,x)=>s+x.s,0),fx=res.factor||1,combo=res.score/(groupSum*fx);
- if(combo>1.0001){at(t,()=>{tally.txt=fmt(groupSum)+' ×'+Math.round(combo)+' combo';SFX.mult(2,run++);render();});t+=380;}
- if(fx>1){at(t,()=>{tally.txt=fmt(groupSum*(combo>1?combo:1))+' ⚡×'+fx+' = '+fmt(res.score);SFX.mult(fx,run++);shake(5);render();});t+=520;}
- at(t,()=>{tally.txt='+'+fmt(res.score);SFX.chime(res.score);render();});t+=250;
+ if(combo>1.0001){at(t,()=>{tally.col='mix';tally.txt=fmt(groupSum)+' ×'+Math.round(combo)+' combo';SFX.mult(2,run++);render();});t+=380;}
+ if(fx>1){at(t,()=>{tally.col='gold';tally.txt=fmt(groupSum*(combo>1?combo:1))+' ⚡×'+fx+' = '+fmt(res.score);SFX.mult(fx,run++);shake(5);render();});t+=520;}
+ at(t,()=>{tally.col='gold';tally.head='+'+fmt(res.score);tally.txt='+'+fmt(res.score);SFX.chime(res.score);render();});t+=250;
  // count the player's total up
  const cu=Math.min(700,250+res.score/40);at(t,()=>{const s0=performance.now(),b0=base;(function f(){if(!tally)return;const k=Math.min(1,(performance.now()-s0)/cu);tally.base=Math.round(b0+res.score*k);render();if(k<1)T.push(requestAnimationFrame(f));})();});t+=cu+80;
  at(t,()=>{celebrate(res.score);});

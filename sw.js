@@ -1,4 +1,4 @@
-const V='v38',C='star-tiles-'+V,F=['./','index.html','style.css?v=38','app.js?v=38','logic.js?v=38','missions.js?v=38','mq.js?v=38','online.js?v=38','manifest.json','icon-180.png','icon-192.png','icon-512.png'];
+const V='v39',C='star-tiles-'+V,F=['./','index.html','style.css?v=39','app.js?v=39','logic.js?v=39','missions.js?v=39','mq.js?v=39','online.js?v=39','manifest.json','icon-180.png','icon-192.png','icon-512.png'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(F)).catch(()=>{}));});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
 // network-first for pages/code; cache only as offline fallback

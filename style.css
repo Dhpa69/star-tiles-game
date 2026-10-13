@@ -327,3 +327,11 @@ footer{background:rgba(8,10,36,.75)!important;border-top:1px solid var(--line);b
 #celeb.out{opacity:0;transition:opacity .45s}
 @keyframes cwin{0%{transform:scale(.2) rotate(-8deg);opacity:0}60%{transform:scale(1.15) rotate(2deg);opacity:1}100%{transform:scale(1)}}@keyframes cfl{from{opacity:.85}to{opacity:0}}
 @media (prefers-reduced-motion:reduce){#board.shk{animation:none}}
+
+/* v39 tally under Replay */
+#tally{height:30px;line-height:30px;text-align:center;font-weight:900;font-size:clamp(16px,5vw,22px);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;color:var(--tc,#fff);
+ text-shadow:0 0 8px var(--tc,#fff),0 0 18px var(--tc,#fff),0 1px 0 #000;letter-spacing:.3px;pointer-events:none;flex:none}
+#tally.on{animation:tbump .18s ease-out}#tally[data-c=yellow]{color:#ffe36a}#tally[data-c=blue]{color:#7cc4ff}#tally[data-c=green]{color:#6ff0a4}#tally[data-c=red]{color:#ff6b84}#tally[data-c=pink]{color:#ff8ae0}#tally[data-c=orange]{color:#ffab5e}
+#tally[data-c=mix]{background:linear-gradient(90deg,#ff5fd2,#ffd23a,#3ddc84,#3fa6ff,#b45cff);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(0 0 6px rgba(255,255,255,.6))}
+#tally[data-c=gold]{color:#ffd84a;--tc:#ffb020}
+@keyframes tbump{from{transform:scale(1.12)}to{transform:scale(1)}}
