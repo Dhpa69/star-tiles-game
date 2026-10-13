@@ -144,3 +144,9 @@ console.log('ui scripts parse ok');
  const G=L.newGame('pvp',()=>0.3,1);a.strictEqual(G.turn,1);a.strictEqual(L.newGame('pvp',()=>0.3).turn,0);
  const B={d:2,t:1};a.deepStrictEqual(L.capB({power:[5,5],coins:[0,0],turn:0},B),{d:2,t:1}); // replay keeps stacked
  console.log('v34 ok');}
+// v35: any piece fits any empty cells incl. corners/edges/multipliers; same-color piece alone scores
+{const a=require('assert');const L=require('./logic.js');const E=()=>{const G=L.newGame('ai');G.board=G.board.map(r=>r.map(()=>null));return G;};
+ for(const rack of [['red','red','red'],['red','blue','green']])for(let o=0;o<4;o++)for(let r=0;r<8;r++)for(let c=0;c<8;c++){const t=L.pieceTiles(rack,0,o,r,c);const inside=t.every(q=>q.r<8&&q.c<8);a.strictEqual(L.validPiece(E().board,[],t),inside);}
+ const G=E();const pl=L.pieceTiles(['red','red','red'],0,0,0,5);const res=L.commit(G,pl,false);a.strictEqual(res.score,20*3*3,'same-color piece on x3 corner scores');
+ const H=E();a.strictEqual(L.commit(H,L.pieceTiles(['blue','blue','blue'],0,1,5,7),false).score,180);
+ console.log('v35 ok');}

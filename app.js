@@ -86,8 +86,7 @@ addEventListener('pointermove',e=>{if(!drag)return;e.preventDefault();
   const el=document.createElement('div');const oo=L.normO(g.orient[g.turn][drag.s]);el.className='drag set '+(oo%2?'v':'h');const disp=L.pieceTiles(g.racks[g.turn],drag.s,oo,0,0);for(let j=0;j<3;j++){const d=document.createElement('div');d.className='rt big';d.innerHTML=tileHTML(disp[j].color);el.appendChild(d);}document.body.appendChild(el);drag.el=el;}
  if(!drag.moved)return;const cs=$('board').querySelector('.cell').getBoundingClientRect().width;
  drag.el.style.setProperty('--dt',cs+'px');const ox=e.clientX-cs/2,oy=e.clientY-cs*1.6;drag.el.style.left=ox+'px';drag.el.style.top=oy+'px';
- const el=document.elementFromPoint(ox+cs/2,oy+cs/2),cell=el&&el.closest('#board .cell');
- const ng=cell?(()=>{const t=tilesAt(drag.s,+cell.dataset.r,+cell.dataset.c);return {tiles:t.filter(q=>q.r<8&&q.c<8),ok:L.validPiece(g.board,placed(),t),r:+cell.dataset.r,c:+cell.dataset.c};})():null;
+ const ng=snapAt(drag.s,ox+cs/2,oy+cs/2);
  if(JSON.stringify(ng)!==JSON.stringify(ghost)){ghost=ng;render();}},{passive:false});
 let noClick=0;addEventListener('pointerup',e=>{if(rotTap){const t=rotTap;rotTap=null;noClick=Date.now();if(Math.hypot(e.clientX-t.x,e.clientY-t.y)<20)rotPlaced(t.p);return;}if(!drag)return;const d=drag;drag=null;if(d.board||d.moved)noClick=Date.now();
  if(d.board&&!d.moved){rotPlaced(d.board);return;}
@@ -335,3 +334,13 @@ function firstBanner(){if(!g||g.over)return;const t=g.turn;let m;
  addEventListener('pageshow',()=>{const c=window._audioCtx();if(c&&c.state!=='running')try{c.resume();}catch(e){}});
  const mb=$('muteBtn');mb.onclick=()=>{profile.muted=!profile.muted;saveProfile();showProfile();if(profile.muted){if(el)el.pause();}else{unlock();SFX.chime(60);}};
 })();
+
+// ---- v35: forgiving drop. Cell from board geometry (not elementFromPoint), clamp so the piece stays on the board at edges/corners,
+// then snap to the nearest valid spot within 1 cell. Fixes drops onto corner x3 squares landing the anchor off-board.
+function snapAt(s,px,py){const bd=$('board').getBoundingClientRect(),cw=bd.width/8,ch=bd.height/8;
+ const fx=(px-bd.left)/cw,fy=(py-bd.top)/ch;if(fx<-0.75||fy<-0.75||fx>8.75||fy>8.75)return null;
+ const vert=L.normO(g.orient[g.turn][s])%2===1;let c=Math.max(0,Math.min(7,Math.floor(fx))),r=Math.max(0,Math.min(7,Math.floor(fy)));
+ if(vert)r=Math.min(r,5);else c=Math.min(c,5);
+ const pl=placed(),cand=[[0,0],[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[-1,1],[1,-1],[1,1]];
+ for(const [dr,dc] of cand){const rr=r+dr,cc=c+dc;if(rr<0||cc<0||rr>7||cc>7)continue;const t=tilesAt(s,rr,cc);if(L.validPiece(g.board,pl,t))return {tiles:t,ok:true,r:rr,c:cc};}
+ const t=tilesAt(s,r,c);return {tiles:t.filter(q=>q.r<8&&q.c<8),ok:false,r,c};}
