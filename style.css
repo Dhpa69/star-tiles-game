@@ -353,3 +353,13 @@ footer{background:rgba(8,10,36,.75)!important;border-top:1px solid var(--line);b
 @keyframes fin{from{opacity:0;transform:translate(-50%,-50%) scale(.4)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 @keyframes fbump{from{transform:translate(-50%,-50%) scale(1.25)}to{transform:translate(-50%,-50%) scale(1)}}
 @keyframes fout{0%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-160%) scale(.8)}}
+
+/* v42: total lives in the callout; under-Replay slot removed */
+#tally{display:none!important}
+#celeb .cw span{display:block}#celeb .cwt{font-size:.62em;margin-top:.12em;letter-spacing:.5px;font-variant-numeric:tabular-nums;color:#fff}
+#celeb.gold .cwt{color:transparent}
+#celeb.plain .cw{font-size:clamp(30px,10vw,46px);--c1:#ffd84a;--c2:#ff9d00}#celeb.plain .cwt{font-size:1em;margin:0}
+/* v42 multiplier badge on covered squares */
+.mbadge{position:absolute;right:-3px;top:-4px;z-index:6;pointer-events:none;font-style:normal;font-weight:900;font-size:clamp(9px,2.8vmin,12px);line-height:1;padding:2px 4px;border-radius:7px;color:#061023;border:1.5px solid #061023;box-shadow:0 0 0 1px rgba(255,255,255,.6),0 0 8px var(--mbc)}
+.mbadge.m2{background:#7ffff3;--mbc:var(--teal,#39ffec)}.mbadge.m3{background:#ff9ae8;--mbc:#ff4fd8}
+.cell:has(.mbadge) .tile{box-shadow:0 0 0 2px var(--mbc2,transparent)}

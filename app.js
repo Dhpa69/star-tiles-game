@@ -397,12 +397,12 @@ function scoreShow(res,who,done){const gd=(res.gd||[]).filter(x=>x.n>=3);
   at(t,()=>{if(gf){gf.classList.add('done');const e=gf;setTimeout(()=>e.remove(),900);}sum+=G.s;tally.head='+'+fmt(sum);tally.txt=fmt(sum);tally.col=gd.length>1?'mix':G.color;render();});t+=120;});
  const groupSum=gd.reduce((s,x)=>s+x.s,0),fx=res.factor||1,combo=res.score/(groupSum*fx);
  if(combo>1.0001){at(t,()=>{tally.move=1;tally.col='mix';tally.txt=fmt(groupSum)+' ×'+Math.round(combo)+' combo';SFX.mult(2,run++);render();});t+=380;}
- if(fx>1){at(t,()=>{tally.move=1;tally.col='gold';tally.txt=fmt(groupSum*(combo>1?combo:1))+' ⚡×'+fx+' = '+fmt(res.score);SFX.mult(fx,run++);shake(5);render();});t+=520;}
+ if(fx>1){at(t,()=>{{const R=$('board').getBoundingClientRect();floatAt(3.5,3.5,'⚡×'+fx,'gold','fgrp');}tally.move=1;tally.col='gold';tally.txt=fmt(groupSum*(combo>1?combo:1))+' ⚡×'+fx+' = '+fmt(res.score);SFX.mult(fx,run++);shake(5);render();});t+=520;}
  at(t,()=>{tally.move=1;tally.col='gold';tally.head='+'+fmt(res.score);tally.txt='+'+fmt(res.score);SFX.finale(res.score);render();});t+=250;
  // count the player's total up
  const cu=Math.min(700,250+res.score/40);at(t,()=>{const s0=performance.now(),b0=base;(function f(){if(!tally)return;const k=Math.min(1,(performance.now()-s0)/cu);tally.base=Math.round(b0+res.score*k);render();if(k<1)T.push(requestAnimationFrame(f));})();});t+=cu+80;
- at(t,()=>{celebrate(res.score);});
- const fin=(skip)=>{document.querySelectorAll('.flt').forEach(e=>e.remove());T.forEach(x=>{clearTimeout(x);cancelAnimationFrame(x);});removeEventListener('pointerdown',onTap,true);if(!tally)return;tally=null;pops=[];popStars=null;render();if(skip&&res.score>=1000)celebrate(res.score);done&&done();};
+ at(t,()=>{celebrate(res.score,fx);});
+ const fin=(skip)=>{document.querySelectorAll('.flt').forEach(e=>e.remove());T.forEach(x=>{clearTimeout(x);cancelAnimationFrame(x);});removeEventListener('pointerdown',onTap,true);if(!tally)return;tally=null;pops=[];popStars=null;render();if(skip)celebrate(res.score,fx);done&&done();};
  const onTap=e=>{if(e.target.closest&&e.target.closest('#overlay.show,#chat.show,#missions.show'))return;fin(true);};
  setTimeout(()=>addEventListener('pointerdown',onTap,true),150);tally.end=fin;at(t+250,()=>fin(false));
  return t+250;}
@@ -426,12 +426,12 @@ const FX=['fireworks','shooting','confetti','rings','meteors'];
 const PALS=[['#ff4fd8','#ffd84a','#39ffec'],['#ff3b5c','#ff8a2a','#ffd23a'],['#3fa6ff','#b45cff','#39ffec'],['#3ddc84','#ffd23a','#ffffff'],['#ff5fd2','#7d6bff','#3fa6ff'],['#ffd700','#fff3b0','#ffb020']];
 let lastFx=null,lastWord={},celebRun=0;
 const pickR=(arr,avoid)=>{const c=arr.length>1?arr.filter(x=>x!==avoid):arr;return c[Math.floor(Math.random()*c.length)];};
-function celebrate(score){const T=TIERS.find(t=>score>=t.min);if(!T)return null;const run=++celebRun;
+function celebrate(score,dbl){const T=TIERS.find(t=>score>=t.min);const tot='+'+Math.round(score).toLocaleString()+(dbl>1?' ⚡×'+dbl:'');if(!T){plainPop(tot);return null;}const run=++celebRun;
  const word=pickR(T.words,lastWord[T.k]);lastWord[T.k]=word;const fx=pickR(FX,lastFx);lastFx=fx;
  const pal=T.gold?PALS[5]:pickR(PALS.slice(0,5));const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
  let L=$('celeb');if(!L){L=document.createElement('div');L.id='celeb';L.innerHTML='<canvas></canvas><div class="cw"></div>';document.body.appendChild(L);}
  const cv=L.querySelector('canvas'),cw=L.querySelector('.cw');L.className='show t'+T.k+(T.full?' full':'')+(T.gold?' gold':'');
- cw.textContent=word;cw.style.setProperty('--c1',pal[0]);cw.style.setProperty('--c2',pal[1]);cw.style.animation='none';void cw.offsetWidth;cw.style.animation='';
+ cw.innerHTML='<span class="cww"></span><span class="cwt"></span>';cw.firstChild.textContent=word;cw.lastChild.textContent=tot;cw.style.setProperty('--c1',pal[0]);cw.style.setProperty('--c2',pal[1]);cw.style.animation='none';void cw.offsetWidth;cw.style.animation='';
  if(T.flash||T.full){L.classList.add('flash');setTimeout(()=>L.classList.remove('flash'),350);}
  celebSound(T.k);
  const dpr=Math.min(2,devicePixelRatio||1),W=innerWidth,H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;const x=cv.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);
@@ -486,3 +486,13 @@ $('endHome').onclick=()=>{hideEnd();$('overlay').classList.add('show');renderGam
 // v41: floating score numbers on the board where the tiles popped (fixed layer, above everything)
 function floatAt(r,c,txt,col,cls,keep){const bd=$('board'),R=bd.getBoundingClientRect(),cw=R.width/8,e=document.createElement('div');e.className='flt '+cls;e.dataset.c=col;e.style.setProperty('--tc',GLOW[col]||'#fff');
  e.style.left=Math.max(cls==='fgrp'?70:16,Math.min(innerWidth-(cls==='fgrp'?70:16),R.left+(c+0.5)*cw))+'px';e.style.top=(R.top+(r+0.5)*(R.height/8))+'px';e.textContent=txt;document.body.appendChild(e);if(!keep)setTimeout(()=>e.remove(),900);return e;}
+
+// v42: moves under 1,000 get a plain total pop in the callout spot
+function plainPop(tot){if(!tot||tot==='+0')return;let L=$('celeb');if(!L){L=document.createElement('div');L.id='celeb';L.innerHTML='<canvas></canvas><div class="cw"></div>';document.body.appendChild(L);}
+ ++celebRun;const cw=L.querySelector('.cw');L.className='show plain';cw.innerHTML='<span class="cwt"></span>';cw.firstChild.textContent=tot;cw.style.animation='none';void cw.offsetWidth;cw.style.animation='';
+ const run=celebRun;setTimeout(()=>{if(run===celebRun)L.classList.add('out');},1000);setTimeout(()=>{if(run===celebRun)L.className='';},1500);}
+// v42: keep x2/x3 visible when a tile (placed, preview, ghost) covers a multiplier square
+(function(){const R=render;render=function(){R.apply(this,arguments);const bd=$('board');if(!bd)return;
+ for(const cell of bd.children){const r=+cell.dataset.r,c=+cell.dataset.c,m=L.mult(r,c);if(m<2)continue;
+  const t=cell.querySelector('.tile'),gh=cell.classList.contains('gok')||cell.classList.contains('gbad');if(!t&&!gh)continue;if(t&&t.querySelector('em'))continue;
+  if(cell.querySelector('.mbadge'))continue;const b=document.createElement('b');b.className='mbadge m'+m;b.textContent='x'+m;cell.appendChild(b);}};})();
