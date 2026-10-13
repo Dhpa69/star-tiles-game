@@ -294,3 +294,14 @@ footer{background:rgba(8,10,36,.75)!important;border-top:1px solid var(--line);b
 .drag,.drag.set{z-index:800!important}
 
 #pmenu .armed{outline:3px solid #ffd84a;box-shadow:0 0 16px #ffd84a}
+
+/* v37 missions */
+.mis-open{position:relative}#misBtn[data-n]:not([data-n=""])::after{content:attr(data-n);position:absolute;top:-6px;right:-6px;background:#ff3b5c;color:#fff;font-size:12px;font-weight:900;border-radius:10px;padding:1px 7px;box-shadow:0 0 8px #ff3b5c}
+#missions{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:center;z-index:1300;background:rgba(3,5,20,.6)}#missions.show{display:flex}
+.miscard{height:auto;max-height:82vh}#mislist{overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:2px}
+.mis{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:14px;padding:9px 11px;color:#eef2ff}.mis.got{opacity:.6}
+.mis .mt{display:flex;justify-content:space-between;gap:8px;font-size:14px}.mis .mt span{color:#ffd84a;font-weight:900;white-space:nowrap}
+.mbar{height:8px;border-radius:5px;background:rgba(255,255,255,.1);margin:7px 0 5px;overflow:hidden}.mbar i{display:block;height:100%;background:linear-gradient(90deg,#5b5cff,#ff4fd8);border-radius:5px;box-shadow:0 0 8px #a43cff}
+.mis .mf{display:flex;justify-content:space-between;align-items:center;min-height:30px}.mis .mf small{color:var(--dim)}.mis .ok{color:#7dffb0!important;font-weight:800}
+.mclaim{padding:5px 16px!important;font-size:14px!important;background:linear-gradient(135deg,#ffb020,#ff7a1a)!important;color:#1a0f00!important}
+.miscard{background:#1a1850!important;opacity:1!important;backdrop-filter:none!important}#missions{isolation:isolate}

@@ -168,3 +168,20 @@ console.log('ui scripts parse ok');
  const O=mk();O.rv=1;a.strictEqual(L.previewMove(O,P2,false).score,12960);a.strictEqual(L.previewMove(O,P1,false).score,11520);
  for(let i=0;i<5;i++){const H=L.newGame('ai');H.turn=1;const m=L.aiPlan(H,'hard');const s0=H.scores[1];const r=L.commit(H,m.pl,m.boost);a.ok(r.score>=0);}
  console.log('v36 ok');}
+// v37 daily missions
+{const a=require('assert');const M=require('./missions.js');
+ a.deepStrictEqual(M.pick('2026-10-13'),M.pick('2026-10-13'));a.strictEqual(M.pick('2026-10-13').length,3);
+ for(let i=0;i<60;i++){const d=M.dayKey(new Date(2026,0,1+i));const p=M.pick(d);a.strictEqual(p.length,3);a.strictEqual(new Set(p.map(m=>m.k)).size,3);}
+ let s=M.ensure(null,new Date(2026,9,13,9));a.strictEqual(s.day,'2026-10-13');a.strictEqual(s.streak,1);
+ // complete everything via events
+ for(let i=0;i<10;i++)M.track(s,{type:'move',score:2500,cleared:10,sizes:[7,3],starGroups:1});for(let i=0;i<3;i++)M.track(s,{type:'game',won:true,online:true});
+ const L=M.list(s);a.ok(L.every(m=>m.done));let tot=0;a.strictEqual(M.claim(s,'all'),0);for(const m of L){const n=M.claim(s,m.id);a.strictEqual(n,m.coins);tot+=n;a.strictEqual(M.claim(s,m.id),0);}
+ a.strictEqual(M.claim(s,'all'),25);a.strictEqual(M.claim(s,'all'),0);a.strictEqual(M.claim(s,'streak'),10);a.strictEqual(M.claim(s,'streak'),0);
+ // reset at local midnight + streak
+ let t=M.ensure(s,new Date(2026,9,14,0,1));a.strictEqual(t.day,'2026-10-14');a.strictEqual(t.streak,2);a.deepStrictEqual(t.c,{});a.strictEqual(M.streakBonus(t),20);
+ for(let d=15;d<22;d++)t=M.ensure(t,new Date(2026,9,d,8));a.strictEqual(M.streakBonus(t),50); // capped
+ t=M.ensure(t,new Date(2026,9,25,8));a.strictEqual(t.streak,1); // missed days resets
+ a.strictEqual(M.ensure(t,new Date(2026,9,25,23)),t);
+ // progress not over-counted for not-done
+ const u=M.ensure(null,new Date(2026,9,13));const done=M.track(u,{type:'move',score:10,cleared:1,sizes:[3],starGroups:0});a.ok(Array.isArray(done));
+ console.log('v37 ok');}

@@ -113,7 +113,7 @@ function boom(res){setTimeout(autosave,0);blastFx=res.cells;pops=res.pops;SFX.bo
 let blastFx=[];
 $('swap').onclick=()=>{const paid=g.swaps[g.turn]<1;if(!L.canSwap(g)){say('Not enough coins');return;}let s=sel;if(s==null||pieces.some(p=>p.s===s))s=firstFree();if(s==null){say('Select a tray piece to swap');return;}if(isOn())Online.act({type:'swap',s});L.swap(g,s);sel=s;say((paid?'Swapped piece (−50 🪙)':'Free swap used')+' — still your turn');render();autosave();};
 $('play').onclick=()=>{const np=pieces.length,p=g.turn;boost=L.single(boost);if(isOn())Online.act({type:'commit',pl:placed(),boost});const res=L.commit(g,placed(),boost);pop(res);markOwner(p);pieces=[];boost=false;
- say(res.score?'+'+res.score+' (cleared '+res.cleared+')':(np?'No match – need 3!':'Passed'));next();};
+ say(res.score?'+'+res.score+' (cleared '+res.cleared+')':(np?'No match – need 3!':'Passed'));if(g.mode!=='pvp')misTrack({type:'move',score:res.score,cleared:res.cleared,sizes:res.sizes||[],starGroups:res.starGroups||0});next();};
 function pop(res){pops=res.pops||[];pops.forEach((q,i)=>SFX.pop(i));if(res.score)setTimeout(()=>SFX.chime(res.score),pops.length*60);else SFX.pass();burst(pops);setTimeout(()=>{pops=[];render();},650);}
 function burst(list){const bd=$('board');setTimeout(()=>list.forEach((q,i)=>{const cell=bd.children[q.r*8+q.c];if(!cell)return;for(let k=0;k<7;k++){const p=document.createElement('i');p.className='prt '+q.color;const ang=k/7*Math.PI*2+Math.random()*.5,d=28+Math.random()*26;p.style.setProperty('--dx',Math.cos(ang)*d+'px');p.style.setProperty('--dy',Math.sin(ang)*d+'px');p.style.animationDelay=(i*0.06)+'s';cell.appendChild(p);setTimeout(()=>p.remove(),900);}}),20);}
 function markOwner(p){g.board.forEach(r=>r.forEach(t=>{if(t&&t.star&&t.owner===undefined)t.owner=p;}));}
@@ -123,7 +123,7 @@ function next(){sel=g.over?null:firstFree();render();if(g.over)return finish();a
  if(g.turn===1){busy=true;render();setTimeout(()=>{const m=L.aiPlan(g,profile.difficulty);if(m.swap&&L.swap(g,0)){busy=false;say('Computer swapped a piece');next();return;}const bl=m.blast?{type:m.blast.type,cells:m.blast.cells,pops:m.blast.pops}:null;pieces=[];
   const pre=g.board.map(r=>r.slice()),res=L.commit(g,m.pl,m.boost);markOwner(1); // state is final now; the rest is only a show
   showMove({who:1,pre,pl:m.pl,boost:m.boost,blast:bl,res},()=>{busy=false;next();});},500);}}
-function finish(){clearSave();const n=NAMES(),w=g.winner,me=meIdx();
+function finish(){clearSave();const n=NAMES(),w=g.winner,me=meIdx();{const on=isOn(),oo=on&&Online.saved(Online.st.code);if(g.mode!=='pvp'&&!(oo&&oo.counted))setTimeout(()=>misTrack({type:'game',won:w===me,online:on}),900);}
  $('result').innerHTML=(g.resigned!=null?n[g.resigned]+' resigned. ':'')+(w<0?'Tie game!':n[w]+' wins!')+'<br>'+g.scores[0]+' – '+g.scores[1]+'<br>'+(g.mode!=='pvp'&&w===me?'+10 coins! ':'')+'Coins: '+g.coins[me];if(!isOn())profile.coins=g.coins[me];profile.games++;if(w===me)profile.wins++;if(isOn()){const S=Online.st,o=Online.saved(S.code);if(o&&o.counted){profile.games--;if(w===me)profile.wins--;}else profile.coins=Math.max(0,profile.coins+g.coins[me]-(g.coinsStart||g.coins)[me]);$('result').innerHTML=$('result').innerHTML.replace(/Coins: \d+/,'Coins: '+profile.coins);Online.persist({over:true,counted:true,winner:w,scores:g.scores.slice()});Online.leave();renderGames();}saveProfile();showProfile();$('overlay').classList.add('show');}
 function start(mode){$('result').innerHTML='';const nm=$('pname').value.trim();if(!nm){$('pname').focus();say('Enter your name first');return;}profile.name=nm;saveProfile();clearSave();g=L.newGame(mode,null,Math.random()<.5?1:0);g.coins[0]=profile.coins;pieces=[];boost=false;busy=false;sel=firstFree();g._live=true;$('overlay').classList.remove('show');render();autosave();firstBanner();}
 // ---- online rooms ----
@@ -344,3 +344,23 @@ function snapAt(s,px,py){const bd=$('board').getBoundingClientRect(),cw=bd.width
  const pl=placed(),cand=[[0,0],[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[-1,1],[1,-1],[1,1]];
  for(const [dr,dc] of cand){const rr=r+dr,cc=c+dc;if(rr<0||cc<0||rr>7||cc>7)continue;const t=tilesAt(s,rr,cc);if(L.validPiece(g.board,pl,t))return {tiles:t,ok:true,r:rr,c:cc};}
  const t=tilesAt(s,r,c);return {tiles:t.filter(q=>q.r<8&&q.c<8),ok:false,r,c};}
+
+// ---- v37: daily missions ----
+const MKEY='startiles.missions';
+function misLoad(){let s=null;try{s=JSON.parse(localStorage.getItem(MKEY));}catch(e){}const n=Missions.ensure(s);if(n!==s)misSave(n);return n;}
+function misSave(s){try{localStorage.setItem(MKEY,JSON.stringify(s));}catch(e){}}
+function misTrack(ev){const s=misLoad(),done=Missions.track(s,ev);misSave(s);done.forEach((m,i)=>setTimeout(()=>{bannerSay('🎯 Mission complete: '+m.txt+' · claim +'+m.coins+' 🪙');SFX.chime(200);},1800*i+200));misBtn();}
+function addCoins(n){profile.coins+=n;if(g&&!isOn()&&!g.over&&g.coins){g.coins[g.mode==='pvp'?0:meIdx()]+=n;autosave();}saveProfile();showProfile();}
+function misBtn(){const s=misLoad(),L=Missions.list(s),ready=L.filter(m=>m.done&&!m.claimed).length+(!s.streakClaimed?1:0)+(L.every(m=>m.claimed)&&!s.allClaimed?1:0);const b=$('misBtn');if(b)b.dataset.n=ready?String(ready):'';}
+function misRender(){const s=misLoad(),L=Missions.list(s),el=$('mislist'),allDone=L.every(m=>m.claimed);
+ const row=(icon,txt,have,goal,coins,state,id)=>'<div class="mis'+(state==='claimed'?' got':'')+'"><div class="mt"><b>'+icon+' '+esc(txt)+'</b><span>+'+coins+' 🪙</span></div><div class="mbar"><i style="width:'+Math.round(100*have/goal)+'%"></i></div><div class="mf"><small>'+have+' / '+goal+'</small>'+
+  (state==='ready'?'<button class="btn mclaim" data-id="'+id+'">Claim</button>':state==='claimed'?'<small class="ok">✓ Claimed</small>':'<small></small>')+'</div></div>';
+ el.innerHTML=L.map(m=>row('🎯',m.txt,m.have,m.goal,m.coins,m.claimed?'claimed':m.done?'ready':'go',m.id)).join('')+
+  row('🏆','Finish all 3 missions',L.filter(m=>m.claimed).length,3,Missions.ALLBONUS,s.allClaimed?'claimed':allDone?'ready':'go','all')+
+  row('🔥','Daily login · day '+s.streak+' streak',1,1,Missions.streakBonus(s),s.streakClaimed?'claimed':'ready','streak');
+ const ms=new Date();ms.setHours(24,0,0,0);const h=Math.floor((ms-Date.now())/36e5),mi=Math.floor((ms-Date.now())%36e5/6e4);$('misreset').textContent='New missions in '+h+'h '+mi+'m';
+ el.querySelectorAll('.mclaim').forEach(b=>b.onclick=()=>{const s2=misLoad(),n=Missions.claim(s2,b.dataset.id);if(n){misSave(s2);addCoins(n);SFX.chime(300);say('+'+n+' 🪙 claimed!');}misRender();misBtn();});}
+$('misBtn').onclick=()=>{$('missions').classList.add('show');misRender();};
+$('misClose').onclick=()=>$('missions').classList.remove('show');
+$('missions').addEventListener('click',e=>{if(e.target.id==='missions')$('misClose').click();});
+misBtn();setInterval(misBtn,60000);
