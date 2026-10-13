@@ -10,7 +10,12 @@ const SFX=(()=>{let ctx=null;const get=()=>{if(!ctx){const C=window.AudioContext
   const s=a.createBufferSource(),f=a.createBiquadFilter(),v=a.createGain();f.type='lowpass';f.frequency.value=lp||1200;v.gain.value=vol||0.4;s.buffer=buf;s.connect(f);f.connect(v);v.connect(a.destination);s.start(t);}
  return {tone,noise,unlock:()=>{const a=get();if(a){const b=a.createBuffer(1,1,22050),s=a.createBufferSource();s.buffer=b;s.connect(a.destination);s.start(0);}},
   click:()=>tone(900,0.05,'square',0.06,0,500),rot:()=>tone(650,0.06,'triangle',0.08,0,900),bad:()=>tone(180,0.15,'sawtooth',0.07,0,120),
-  pop:i=>{tone(500+i*70,0.09,'sine',0.18,i*0.06,1400+i*90);noise(0.04,0.15,i*0.06,3000);},
+  pop:(i,t0)=>{if(t0==null)t0=i*0.06;const k=Math.min(i,28)/28,st=Math.min(i,24),f=440*Math.pow(2,st/12),v=0.13+0.09*k; // v39: escalating pops, capped
+   tone(f,0.09+0.05*k,'sine',v,t0,f*2.6);noise(0.035+0.03*k,0.1+0.08*k,t0,2600+k*3500);
+   if(k>0.15)tone(f*2,0.08+0.05*k,'triangle',v*0.45,t0+0.005,f*3.6);
+   if(k>0.4)tone(f*1.5,0.12+0.08*k,'sine',v*0.4,t0+0.012,f*2.2);
+   if(k>0.65){tone(f*4,0.06,'sine',0.035+0.03*k,t0+0.03,f*5.2);tone(f*5.04,0.05,'sine',0.03*k,t0+0.055,f*6);}
+   if(k>0.85)tone(f/2,0.16,'triangle',0.05*k,t0,f*0.75);},
   chime:sc=>{const notes=sc>=300?[523,659,784,1047,1319]:sc>=120?[523,659,784,1047]:[659,784,988];notes.forEach((f,i)=>tone(f,0.25,'triangle',0.12,0.12+i*0.08));},
   boom:()=>{noise(0.6,0.7,0,700);tone(120,0.5,'sine',0.35,0,40);},pass:()=>tone(330,0.12,'triangle',0.08)};})();
 function beep(f){if(f<=250)SFX.bad();else if(f<=650)SFX.click();else SFX.rot();}
@@ -386,7 +391,7 @@ function scoreShow(res,who,done){const gd=(res.gd||[]).filter(x=>x.n>=3);
  tally={who,base,txt:'+0',end:null,t0};render();
  let sum=0;
  gd.forEach((G,gi)=>{let gs=0;const parts=[...G.cells.map(c=>({...c})),...Array(G.stars).fill(null)];
-  parts.forEach((c,k)=>{at(t,()=>{gs+=20;tally.col=c?G.color:'mix';tally.txt=(sum?fmt(sum)+' + ':'')+fmt(gs);if(c){const q=pops.find(q=>q.r===c.r&&q.c===c.c);if(q){q.at=performance.now()-t0;burst1(c,run);}}SFX.pop(run++);render();});t+=step;});
+  parts.forEach((c,k)=>{at(t,()=>{gs+=20;tally.col=c?G.color:'mix';tally.txt=(sum?fmt(sum)+' + ':'')+fmt(gs);if(c){const q=pops.find(q=>q.r===c.r&&q.c===c.c);if(q){q.at=performance.now()-t0;burst1(c,run);}}SFX.pop(run++,0);render();});t+=step;});
   let cur=G.n*20,txt=fmt(cur);G.mults.forEach(m=>{at(t,()=>{tally.col=G.color;cur*=m;txt+=' ×'+m;tally.txt=(sum?fmt(sum)+' + ':'')+txt;SFX.mult(m,run++);shake(m>2?6:3);render();});t+=mStep;});
   if(G.mults.length){at(t,()=>{tally.txt=(sum?fmt(sum)+' + ':'')+txt+' = '+fmt(G.s);render();});t+=mStep;}
   at(t,()=>{sum+=G.s;tally.head='+'+fmt(sum);tally.txt=fmt(sum);tally.col=gd.length>1?'mix':G.color;render();});t+=120;});
