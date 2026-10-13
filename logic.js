@@ -9,7 +9,7 @@ function deal(rng){return [].concat(piece(rng),piece(rng),piece(rng));}
 function newGame(mode,rng,first){rng=rng||Math.random;
  const b=[];for(let r=0;r<N;r++){b.push([]);for(let c=0;c<N;c++)b[r].push(null);}
  [[3,3],[3,4],[4,3],[4,4]].forEach(([r,c])=>b[r][c]={color:rndColor(rng)});
- return {orient:[[0,0,0],[0,0,0]],board:b,mode,turn:first===1?1:0,moves:[0,0],scores:[0,0],racks:[deal(rng),deal(rng)],power:[2,2],swaps:[1,1],coins:[START_COINS,mode==='ai'?0:START_COINS],over:false,rng};}
+ return {orient:[[0,0,0],[0,0,0]],board:b,mode,rv:2,turn:first===1?1:0,moves:[0,0],scores:[0,0],racks:[deal(rng),deal(rng)],power:[2,2],swaps:[1,1],coins:[START_COINS,mode==='ai'?0:START_COINS],over:false,rng};}
 const inb=(r,c)=>r>=0&&c>=0&&r<N&&c<N;
 function canPlace(b,r,c){ if(!inb(r,c)||b[r][c])return false;
  if(b.every(row=>row.every(t=>!t)))return true; // empty board: anywhere
@@ -43,6 +43,7 @@ function group(b,r,c){const col=b[r][c].color,seen=new Set(),st=[[r,c]],out=[];
   if(!inb(y,x))continue;const t=b[y][x];if(!t)continue;
   if(t.star){out.push([y,x]);st.push([y+1,x],[y-1,x],[y,x+1],[y,x-1]);continue;} // stars are wild and chain
   if(t.color!==col)continue;out.push([y,x]);st.push([y+1,x],[y-1,x],[y,x+1],[y,x-1]);}return out;}
+let RV=2;function useRules(g){RV=g&&g.rv===2?2:1;}
 function evaluate(b,pl,boost){const nb=b.map(row=>row.map(t=>t&&{...t}));let score=0;const seeds=[];
  for(const p of pl){nb[p.r][p.c]=p.color==='star'?{star:true,fresh:true,mult:mult(p.r,p.c)}:{color:p.color};}
  // v28: every colored tile on the board is a seed, so ANY connected group of 3+ (stars wild, chaining through stars)
@@ -50,11 +51,11 @@ function evaluate(b,pl,boost){const nb=b.map(row=>row.map(t=>t&&{...t}));let sco
  for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(nb[y][x]&&!nb[y][x].star)seeds.push({r:y,c:x});
  let cleared=0,groups=0;const done=new Set(),pops=[];
  for(const p of seeds){if(nb[p.r][p.c].star||done.has(p.r*N+p.c))continue;const g=group(nb,p.r,p.c);g.forEach(([y,x])=>{if(!nb[y][x].star)done.add(y*N+x)});
-  if(g.length>=3){const ns=g.filter(([y,x])=>nb[y][x].star).length,cnt=g.length-ns+Math.min(ns,2);let m=1;g.forEach(([y,x])=>{m*=mult(y,x);});let s=20*cnt*m;if(cnt>=5)s*=2; // every multiplier square in the group multiplies; 5+ tiles x2; at most 2 stars count toward points
+  if(g.length>=3){const ns=g.filter(([y,x])=>nb[y][x].star).length,cnt=g.length-ns+Math.min(ns,2);let m=1;g.forEach(([y,x])=>{m*=mult(y,x);});let s=RV===1?20*cnt*m*(cnt>=5?2:1):20*g.length*m; // v36 rules (RV 2): every tile incl. all stars, no 5+ bonus // every multiplier square in the group multiplies; 5+ tiles x2; at most 2 stars count toward points
    score+=s;groups++;
    g.forEach(([y,x])=>{if(!nb[y][x].star){cleared++;pops.push({r:y,c:x,color:nb[y][x].color});}});}}
  for(const p of pops)nb[p.r][p.c]=null; // scored colored tiles are cleared; stars stay
- nb.forEach(r=>r.forEach(t=>t&&delete t.fresh));if(groups>1)score*=groups; // combo: N groups in one move multiply the total by N
+ nb.forEach(r=>r.forEach(t=>t&&delete t.fresh));if(RV===1&&groups>1)score*=groups; // v36: no combo multiplier (old games RV 1 keep it) // combo: N groups in one move multiply the total by N
  const B=norm(boost);score*=Math.pow(2,B.d)*Math.pow(3,B.t); // stacked Doubles x2^d and Triples x3^t
  return {score,board:nb,cleared,pops,groups,doubles:B.d,triples:B.t,factor:Math.pow(2,B.d)*Math.pow(3,B.t)};}
 // boost formats: true / number (old saves & online: count of Doubles) or {d,t}
@@ -62,8 +63,8 @@ function norm(b){if(!b)return {d:0,t:0};if(b===true)return {d:1,t:0};if(typeof b
 function capB(g,b){const B=norm(b),ch=charges(g),d=Math.min(B.d,ch),t=Math.min(B.t,ch-d);return {d,t};}
 function dbl(b){return norm(b).d;}
 // exact preview of what PLAY would score now (same evaluate() as commit)
-function previewMove(g,pl,boost){return evaluate(g.board,pl,capB(g,boost));}
-function commit(g,pl,boost){const p=g.turn;
+function previewMove(g,pl,boost){useRules(g);return evaluate(g.board,pl,capB(g,boost));}
+function commit(g,pl,boost){useRules(g);const p=g.turn;
  {const B=capB(g,boost);for(let i=0;i<B.d+B.t;i++)spendCharge(g);boost=B;}
  const res=evaluate(g.board,pl,boost);g.board=res.board;g.scores[p]+=res.score; // v21: no pot, no pass bonus
  const rack=g.racks[p];pl.forEach(x=>{let i=(x.slot!=null&&rack[x.slot]===x.color)?x.slot:rack.indexOf(x.color);if(i>=0)rack[i]=null;});
@@ -81,7 +82,7 @@ function endTurn(g){g.moves[g.turn]++;g.usedPower=false;
  g.turn=1-g.turn;refill(g);}
 function isFinal(g){return g.moves[g.turn]===MOVES-1;}
 // bot search over whole pieces (all 4 orientations); beam = how many first pieces to extend; deadline caps time
-function aiMove(g,opt){opt=opt||{};const beam=opt.beam||40,maxP=opt.maxPieces||3,t0=Date.now(),dl=opt.ms||600;
+function aiMove(g,opt){useRules(g);opt=opt||{};const beam=opt.beam||40,maxP=opt.maxPieces||3,t0=Date.now(),dl=opt.ms||600;
  const b=g.board,rack=g.racks[g.turn];let best={score:0,val:0,pl:[]};
  const starCost=pl=>opt.saveStars?pl.filter(t=>t.color==='star').length*15:0;
  function cands(pl,usedSets){const out=[];for(let s=0;s<3;s++){if(usedSets.includes(s)||!rack[3*s])continue;
@@ -118,7 +119,7 @@ function pairsValue(b){let v=0;for(let r=0;r<N;r++)for(let c=0;c<N;c++){const t=
   const open=[[r-dr,c-dc],[y+dr,x+dc]].some(([a,bb])=>inb(a,bb)&&!b[a][bb]);if(open)v+=mult(r,c)>1||mult(y,x)>1?2:1;}}}return v;}
 function bestOnePiece(b,rack,sets,t0,dl){let best=0;for(const s of sets){for(const o of [0,1,2,3])for(let r=0;r<N;r++)for(let c=0;c<N;c++){
  const t=pieceTiles(rack,s,o,r,c);if(!validPiece(b,[],t))continue;const sc=evaluate(b,t).score;if(sc>best)best=sc;}if(Date.now()-t0>dl)break;}return best;}
-function expertMove(g,ms){const t0=Date.now(),dl=ms||1300,b=g.board,rack=g.racks[g.turn],final=isFinal(g),me=g.turn;
+function expertMove(g,ms){useRules(g);const t0=Date.now(),dl=ms||1300,b=g.board,rack=g.racks[g.turn],final=isFinal(g),me=g.turn;
  const sets=[0,1,2].filter(s=>rack[3*s]);const W=final?0:1;
  const value=(pl,used)=>{const ev=evaluate(b,pl);const starsUsed=pl.filter(t=>t.color==='star').length;
   return {score:ev.score,board:ev.board,v:ev.score+W*(-3*pairsValue(ev.board)-(ev.score?0:starsUsed*25))};};
@@ -152,7 +153,7 @@ function aiBoost(g,score,at){const free=g.power[g.turn];if(score<=0||free<=0)ret
  if(score>=at||isFinal(g))return {d:1,t:0};return false;} // v34: Double only, once per move
 function single(b){const B=norm(b);return B.d+B.t>0?{d:1,t:0}:false;} // v34: new moves = one Double max (old logs replay as recorded via commit/capB)
 const LEVELS={easy:{beam:3,maxPieces:1,ms:200},medium:{beam:40,maxPieces:3,ms:600},hard:{beam:400,maxPieces:3,ms:450,saveStars:true,boostAt:200}};
-function aiPlan(g,level){level=level||'medium';if(level==='expert')return expertPlan(g);const opt=LEVELS[level]||LEVELS.medium,rng=g.rng||Math.random;
+function aiPlan(g,level){useRules(g);level=level||'medium';if(level==='expert')return expertPlan(g);const opt=LEVELS[level]||LEVELS.medium,rng=g.rng||Math.random;
  if(level==='easy'){ // often a random weak move, 1 piece, rarely power-ups
   if(rng()<0.5){const rack=g.racks[g.turn],opts=[];for(let s=0;s<3;s++){if(!rack[3*s])continue;for(const o of [0,1])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const t=pieceTiles(rack,s,o,r,c);if(validPiece(g.board,[],t))opts.push(t);}}
    return {blast:null,pl:opts.length&&rng()<0.7?opts[Math.floor(rng()*opts.length)]:[],boost:false};}
@@ -168,6 +169,6 @@ function aiPlan(g,level){level=level||'medium';if(level==='expert')return expert
  const m=aiMove(g,opt);return {blast:bl,pl:m.pl,boost:m.boost};}
 // v23: resign = player p quits; the other player wins (gets the win coins)
 function resign(g,p){if(g.over)return false;g.over=true;g.resigned=p;g.winner=1-p;g.coins[1-p]+=WIN_COINS;return true;}
-const api={single,resign,norm,capB,charges,spendCharge,dbl,expertMove,expertPlan,pairsValue,previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
+const api={useRules,evaluate,single,resign,norm,capB,charges,spendCharge,dbl,expertMove,expertPlan,pairsValue,previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
 if(typeof module!=='undefined')module.exports=api;else root.Logic=api;
 })(this);

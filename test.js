@@ -1,4 +1,6 @@
 const L=require('./logic.js'),a=require('assert'),fs=require('fs');
+// legacy tests below were written for rules v1 (pre-v36); run them under rv 1 to prove old games replay unchanged
+const _ng=L.newGame;L.newGame=(...x)=>{const G=_ng(...x);G.rv=1;return G;};L.useRules({rv:1});
 let s=1;const rng=()=>(s=(s*16807)%2147483647)/2147483647;
 const empty=()=>Array.from({length:8},()=>Array(8).fill(null));
 const g=L.newGame('ai',rng);a.equal(g.racks[0].length,9);a.equal(L.canPlace(g.board,0,0),false);a.ok(L.canPlace(g.board,2,3));
@@ -150,3 +152,19 @@ console.log('ui scripts parse ok');
  const G=E();const pl=L.pieceTiles(['red','red','red'],0,0,0,5);const res=L.commit(G,pl,false);a.strictEqual(res.score,20*3*3,'same-color piece on x3 corner scores');
  const H=E();a.strictEqual(L.commit(H,L.pieceTiles(['blue','blue','blue'],0,1,5,7),false).score,180);
  console.log('v35 ok');}
+
+// v36 rules (rv 2): every tile incl. all stars x20, x every multiplier square, no 5+ bonus, no combo; Double x2
+{const a=require('assert');L.newGame=_ng;
+ const base={'0,5':'green','0,7':'star','1,1':'yellow','1,7':'blue','2,2':'star','2,3':'star','2,4':'star','2,5':'star','2,7':'red','4,1':'blue','4,6':'purple','4,7':'yellow','5,2':'star','5,5':'star','6,2':'star','6,7':'orange','7,2':'star','7,4':'yellow'};
+ const mk=()=>{const G=L.newGame('pvp');a.strictEqual(G.rv,2);G.board=Array.from({length:8},()=>Array(8).fill(null));for(const k in base){const [r,c]=k.split(',').map(Number);G.board[r][c]=base[k]==='star'?{star:true}:{color:base[k]};}return G;};
+ const P2=[[0,6,'yellow'],[1,6,'yellow'],[2,6,'yellow'],[3,6,'yellow'],[5,3,'red'],[6,3,'yellow'],[7,3,'orange']].map(([r,c,color])=>({r,c,color}));
+ const yOnly=L.previewMove(mk(),P2.slice(0,4),false);a.strictEqual(yOnly.score,2160,'yellow group 9x20x2x2x3');
+ const pv=L.previewMove(mk(),P2,false);a.strictEqual(pv.score,2640,'pic2 = 2160 + 3x160');a.strictEqual(pv.groups,4);
+ const G=mk();a.strictEqual(L.commit(G,P2,false).score,2640);
+ a.strictEqual(L.previewMove(mk(),P2,{d:1,t:0}).score,5280,'Double x2');
+ const P1=[[0,6,'yellow'],[1,6,'yellow'],[2,6,'yellow'],[3,3,'orange'],[3,4,'yellow'],[3,5,'red'],[3,6,'yellow']].map(([r,c,color])=>({r,c,color}));
+ const p1=L.previewMove(mk(),P1,false);a.strictEqual(p1.score,10*20*12+5*20*4*2,'pic1 = yellow 2400 + orange 400 + red 400');
+ // old games (rv 1) still score the old way
+ const O=mk();O.rv=1;a.strictEqual(L.previewMove(O,P2,false).score,12960);a.strictEqual(L.previewMove(O,P1,false).score,11520);
+ for(let i=0;i<5;i++){const H=L.newGame('ai');H.turn=1;const m=L.aiPlan(H,'hard');const s0=H.scores[1];const r=L.commit(H,m.pl,m.boost);a.ok(r.score>=0);}
+ console.log('v36 ok');}
