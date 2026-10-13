@@ -136,7 +136,7 @@ function remoteAct(a){const p=g.turn;
  else if(a.type==='blast'){const res=L.blast(g,a.b,a.r,a.c);if(res){lastBlast={p,k:g.moves[p],type:a.b,cells:res.cells,pops:res.pops};boom(res);say(NAMES()[p]+' used '+(a.b==='bomb'?'💣 Bomb':'✚ Cross Blast'));}render();return;}
  next();}
 const pending=[];
-function onMsg(d){const S=Online.st;
+function onMsg(d){const S=Online.st;if(d.t==='chat'){chatIn(d);return;}
  if(d.t==='hello'&&S.host&&S.seed!=null&&S.names){Online.start(S.seed,S.names,S.coins);} // v24: joiner didn't get start yet -> resend
  else if(d.t==='hello'&&S.host&&S.seed==null){const seed=Math.floor(Math.random()*2**31);const names=[profile.name,d.name],coins=[profile.coins,+d.coins||100];Online.start(seed,names,coins);beginOnline(seed,names,coins);}
  else if(d.t==='start'&&!S.host&&S.seed==null)beginOnline(d.seed,d.names,d.coins);
@@ -182,7 +182,7 @@ $('resumeBtn').onclick=()=>{const s=loadSave();if(!s)return;g=Object.assign(s.g,
  if(g.mode==='ai'&&g.turn===1){pieces=[];next();}else render();say('Game resumed');};
 addEventListener('pagehide',autosave);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')autosave();});
 $('vsAI').onclick=()=>start('ai');$('vsP').onclick=()=>start('pvp');$('menuBtn').onclick=()=>{autosave();showResume();$('overlay').classList.add('show');};
-$('infoBtn').onclick=()=>say('Drag a 3-tile piece · tap it again or ↻ to rotate · placed pieces stay movable until PLAY · ⚡ = power-ups · place anywhere it fits');
+
 function fit(){const bd=$('board'),app=$('app');let used=0;[...app.children].forEach(c=>{if(c!==bd&&c.id!=='overlay')used+=c.getBoundingClientRect().height;});
  const st=getComputedStyle(app),avail=app.clientHeight-parseFloat(st.paddingTop)-used-4;bd.style.width=Math.max(120,Math.min(app.clientWidth,avail))+'px';}
 addEventListener('resize',fit);
@@ -292,3 +292,23 @@ $('shareCode').onclick=()=>{const c=$('onlcode').textContent.trim();if(!/^[A-Z0-
  try{history.replaceState(null,'',location.pathname);}catch(e){}$('joinCode').value=code;
  const go=()=>{const nm=$('pname').value.trim();if(!nm){$('pname').focus();say('Enter your name, then tap Join');$('joinCode').scrollIntoView({block:'center'});return;}profile.name=nm;saveProfile();joinRoom(code);startWait();};
  setTimeout(go,300);})();
+
+// ---- v32: chat (online games only). Rides the same transport, stored per game, never touches game state ----
+function chatStore(){const o=isOn()&&Online.saved(Online.st.code);return o&&Array.isArray(o.chat)?o.chat:[];}
+function chatSave(list,unread){if(!isOn())return;Online.upd(Online.st.code,o=>{o.chat=list.slice(-100);if(unread!=null)o.unread=unread;});}
+function chatUnread(){const o=isOn()&&Online.saved(Online.st.code);return o&&o.unread||0;}
+function chatBadge(){const b=$('infoBtn'),n=isOn()?chatUnread():0;b.dataset.n=n?String(n):'';}
+function chatIn(d){if(!d.id||typeof d.txt!=='string')return;const list=chatStore();if(list.some(m=>m.id===d.id))return;
+ list.push({id:d.id,me:false,name:String(d.name||'').slice(0,20),txt:d.txt.slice(0,200),ts:+d.ts||Date.now()});list.sort((p,q)=>p.ts-q.ts);
+ const open=$('chat').classList.contains('show');chatSave(list,open?0:chatUnread()+1);if(open)chatRender();else{chatBadge();if(!d._old){SFX.click();say('💬 '+(d.name||'')+': '+d.txt.slice(0,40));}}}
+function chatSend(txt){txt=(txt||'').trim();if(!txt||!isOn())return;const m={t:'chat',id:Math.random().toString(36).slice(2,11),txt:txt.slice(0,200),name:profile.name,ts:Date.now()};
+ const list=chatStore();list.push({id:m.id,me:true,name:profile.name,txt:m.txt,ts:m.ts});chatSave(list);Online.send(m);chatRender();}
+function chatRender(){const el=$('chlist'),list=chatStore();$('chwho').textContent=isOn()?' with '+(NAMES()[1-meIdx()]||''):'';
+ el.innerHTML=list.length?list.map(m=>'<div class="cm '+(m.me?'me':'them')+'"><span>'+esc(m.txt)+'</span><small>'+new Date(m.ts).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+'</small></div>').join(''):'<p class="chempty">Say hi 👋</p>';el.scrollTop=el.scrollHeight;}
+$('infoBtn').onclick=()=>{if(!isOn()){say('Chat is for online games');return;}$('chat').classList.add('show');Online.upd(Online.st.code,o=>o.unread=0);chatBadge();chatRender();};
+$('chClose').onclick=()=>{$('chat').classList.remove('show');$('chText').blur();};
+$('chSend').onclick=()=>{chatSend($('chText').value);$('chText').value='';};
+$('chText').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('chSend').click();}});
+document.querySelectorAll('.chemo button').forEach(b=>b.onclick=()=>chatSend(b.dataset.e));
+$('chat').addEventListener('click',e=>{if(e.target.id==='chat')$('chClose').click();});
+setInterval(chatBadge,2000);

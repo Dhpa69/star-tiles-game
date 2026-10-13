@@ -12,8 +12,8 @@ const Online=(function(){
  // ntfy.sh stays as a secondary path for the few important messages (hello/start/act/rematch) and when MQTT is down.
  const T=c=>'startiles/v1/'+c;const IMPORTANT={act:1,start:1,hello:1,rematch:1};
  const DBG=[];function dlog(m){DBG.push(new Date().toTimeString().slice(0,8)+' '+m);if(DBG.length>200)DBG.shift();st.lastLog=m;}
- function topicFor(code,msg){return msg.t==='act'?T(code)+'/a/'+msg.n:(msg.t==='start'||msg.t==='hello'||msg.t==='rematch')?T(code)+'/'+msg.t:T(code)+'/x';}
- function publish(code,msg){if(!msg.u)msg.u=Math.random().toString(36).slice(2,11);let n=0;try{n=MQ.pub(topicFor(code,msg),JSON.stringify(msg),!!IMPORTANT[msg.t]);}catch(e){}
+ function topicFor(code,msg){if(msg.t==='chat')return T(code)+'/c/'+msg.id;return msg.t==='act'?T(code)+'/a/'+msg.n:(msg.t==='start'||msg.t==='hello'||msg.t==='rematch')?T(code)+'/'+msg.t:T(code)+'/x';}
+ function publish(code,msg){if(!msg.u)msg.u=Math.random().toString(36).slice(2,11);let n=0;try{n=MQ.pub(topicFor(code,msg),JSON.stringify(msg),!!IMPORTANT[msg.t]||msg.t==='chat');}catch(e){}
   if(!n&&IMPORTANT[msg.t]){PENDQ.push([code,msg]);if(PENDQ.length>50)PENDQ.shift();}
   dlog('tx '+msg.t+(msg.n!=null?'#'+msg.n:'')+' mqtt:'+n);return n;}
  const PENDQ=[];function flushQ(){const q=PENDQ.splice(0);q.forEach(([c,m])=>publish(c,m));}
