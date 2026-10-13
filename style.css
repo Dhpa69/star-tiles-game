@@ -335,3 +335,21 @@ footer{background:rgba(8,10,36,.75)!important;border-top:1px solid var(--line);b
 #tally[data-c=mix]{background:linear-gradient(90deg,#ff5fd2,#ffd23a,#3ddc84,#3fa6ff,#b45cff);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(0 0 6px rgba(255,255,255,.6))}
 #tally[data-c=gold]{color:#ffd84a;--tc:#ffb020}
 @keyframes tbump{from{transform:scale(1.12)}to{transform:scale(1)}}
+
+/* v41 end panel */
+#endp{position:fixed;left:0;right:0;bottom:0;z-index:1120;display:none;justify-content:center;padding:0 10px max(12px,env(safe-area-inset-bottom));pointer-events:none}#endp.show{display:flex}
+.endc{pointer-events:auto;width:100%;max-width:460px;background:#1a1850;border:1px solid var(--line);border-radius:18px;padding:12px 14px;box-shadow:0 -6px 30px #000a,0 0 24px rgba(164,60,255,.35);text-align:center;color:#eef2ff}
+#endres{font-weight:800;font-size:16px;line-height:1.35}#endst{min-height:18px;color:#ffd84a;font-size:13px;margin:4px 0}
+.endb{display:flex;gap:8px;margin-top:6px}.endb #endRe{flex:1;background:linear-gradient(135deg,#ff4fd8,#a43cff)!important;color:#fff!important}.endb #endHome{flex:none;padding:0 16px}
+
+/* v41 floating board scores */
+.flt{position:fixed;z-index:1000;transform:translate(-50%,-50%);pointer-events:none;font-weight:900;white-space:nowrap;color:var(--tc);font-variant-numeric:tabular-nums;
+ text-shadow:0 0 6px var(--tc),0 0 14px var(--tc),0 2px 0 #000,0 0 2px #000;-webkit-text-stroke:.6px rgba(0,0,0,.55)}
+.flt.f20{font-size:clamp(13px,4vw,18px);animation:f20 .85s ease-out forwards}
+.flt.fgrp{font-size:clamp(18px,6vw,28px);padding:2px 10px;border-radius:12px;background:rgba(10,8,40,.78);border:1.5px solid var(--tc);box-shadow:0 0 16px var(--tc);animation:fin .25s cubic-bezier(.2,1.6,.4,1) both}
+.flt.fgrp.bump{animation:fbump .22s ease-out}.flt.fgrp.done{animation:fout .8s ease-in forwards}
+.flt[data-c=mix]{--tc:#ffd84a}
+@keyframes f20{0%{opacity:0;transform:translate(-50%,-30%) scale(.7)}20%{opacity:1;transform:translate(-50%,-70%) scale(1.1)}100%{opacity:0;transform:translate(-50%,-180%) scale(1)}}
+@keyframes fin{from{opacity:0;transform:translate(-50%,-50%) scale(.4)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes fbump{from{transform:translate(-50%,-50%) scale(1.25)}to{transform:translate(-50%,-50%) scale(1)}}
+@keyframes fout{0%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-160%) scale(.8)}}
