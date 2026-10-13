@@ -6,10 +6,10 @@ function rnd(rng){return rng()<0.08?'star':COLORS[Math.floor(rng()*COLORS.length
 function rndColor(rng){return COLORS[Math.floor(rng()*COLORS.length)];}
 function piece(rng){let st=false;return [0,1,2].map(()=>{let t=rnd(rng);if(t==='star'){if(st)t=rndColor(rng);st=true;}return t;});} // max 1 star per piece
 function deal(rng){return [].concat(piece(rng),piece(rng),piece(rng));}
-function newGame(mode,rng){rng=rng||Math.random;
+function newGame(mode,rng,first){rng=rng||Math.random;
  const b=[];for(let r=0;r<N;r++){b.push([]);for(let c=0;c<N;c++)b[r].push(null);}
  [[3,3],[3,4],[4,3],[4,4]].forEach(([r,c])=>b[r][c]={color:rndColor(rng)});
- return {orient:[[0,0,0],[0,0,0]],board:b,mode,turn:0,moves:[0,0],scores:[0,0],racks:[deal(rng),deal(rng)],power:[2,2],swaps:[1,1],coins:[START_COINS,mode==='ai'?0:START_COINS],over:false,rng};}
+ return {orient:[[0,0,0],[0,0,0]],board:b,mode,turn:first===1?1:0,moves:[0,0],scores:[0,0],racks:[deal(rng),deal(rng)],power:[2,2],swaps:[1,1],coins:[START_COINS,mode==='ai'?0:START_COINS],over:false,rng};}
 const inb=(r,c)=>r>=0&&c>=0&&r<N&&c<N;
 function canPlace(b,r,c){ if(!inb(r,c)||b[r][c])return false;
  if(b.every(row=>row.every(t=>!t)))return true; // empty board: anywhere
@@ -149,7 +149,8 @@ function expertPlan(g){const ms=1300;let bl=null,swap=false;
 // AI stacking: Triple beats Double for the same charge, so the AI stacks Triples using FREE charges only
 // (keeps coins). Big move -> 1 Triple; huge move or last move -> all free charges.
 function aiBoost(g,score,at){const free=g.power[g.turn];if(score<=0||free<=0)return false;
- if(isFinal(g)||score>=at*4)return {d:0,t:free};if(score>=at)return {d:0,t:1};return false;}
+ if(score>=at||isFinal(g))return {d:1,t:0};return false;} // v34: Double only, once per move
+function single(b){const B=norm(b);return B.d+B.t>0?{d:1,t:0}:false;} // v34: new moves = one Double max (old logs replay as recorded via commit/capB)
 const LEVELS={easy:{beam:3,maxPieces:1,ms:200},medium:{beam:40,maxPieces:3,ms:600},hard:{beam:400,maxPieces:3,ms:450,saveStars:true,boostAt:200}};
 function aiPlan(g,level){level=level||'medium';if(level==='expert')return expertPlan(g);const opt=LEVELS[level]||LEVELS.medium,rng=g.rng||Math.random;
  if(level==='easy'){ // often a random weak move, 1 piece, rarely power-ups
@@ -167,6 +168,6 @@ function aiPlan(g,level){level=level||'medium';if(level==='expert')return expert
  const m=aiMove(g,opt);return {blast:bl,pl:m.pl,boost:m.boost};}
 // v23: resign = player p quits; the other player wins (gets the win coins)
 function resign(g,p){if(g.over)return false;g.over=true;g.resigned=p;g.winner=1-p;g.coins[1-p]+=WIN_COINS;return true;}
-const api={resign,norm,capB,charges,spendCharge,dbl,expertMove,expertPlan,pairsValue,previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
+const api={single,resign,norm,capB,charges,spendCharge,dbl,expertMove,expertPlan,pairsValue,previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
 if(typeof module!=='undefined')module.exports=api;else root.Logic=api;
 })(this);

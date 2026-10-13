@@ -292,3 +292,5 @@ footer{background:rgba(8,10,36,.75)!important;border-top:1px solid var(--line);b
 #prev{z-index:900}
 #chat{z-index:1100}#overlay{z-index:1200}#pmenu{z-index:1150}#onl{z-index:1250}
 .drag,.drag.set{z-index:800!important}
+
+#pmenu .armed{outline:3px solid #ffd84a;box-shadow:0 0 16px #ffd84a}

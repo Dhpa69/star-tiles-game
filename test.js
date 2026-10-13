@@ -136,3 +136,11 @@ console.log('ok',g.scores,g.winner,(Date.now()-t0)+'ms',JSON.stringify(avg),'har
 // UI scripts must at least parse (catches broken edits before shipping)
 for(const f of ['app.js','online.js','sw.js'])new (require('vm').Script)(require('fs').readFileSync(__dirname+'/'+f,'utf8'),{filename:f});
 console.log('ui scripts parse ok');
+
+// v34: Double only, once per move; AI never stacks; old stacked logs still replay as recorded; random first player
+{const a=require('assert');const L=require('./logic.js');
+ a.deepStrictEqual(L.single({d:3,t:2}),{d:1,t:0});a.strictEqual(L.single(false),false);
+ for(let i=0;i<30;i++){const G=L.newGame('ai');G.turn=1;const p=L.aiPlan(G,'hard');if(p.boost){const B=L.norm(p.boost);a.ok(B.d===1&&B.t===0,'AI boost must be one Double');}}
+ const G=L.newGame('pvp',()=>0.3,1);a.strictEqual(G.turn,1);a.strictEqual(L.newGame('pvp',()=>0.3).turn,0);
+ const B={d:2,t:1};a.deepStrictEqual(L.capB({power:[5,5],coins:[0,0],turn:0},B),{d:2,t:1}); // replay keeps stacked
+ console.log('v34 ok');}
