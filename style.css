@@ -260,3 +260,13 @@ footer{background:rgba(8,10,36,.75)!important;border-top:1px solid var(--line);b
 .replay{background:rgba(255,255,255,.1)!important;border:1px solid var(--line)!important;color:#cfd8ff!important}
 #ver{color:var(--dim)}
 .set{background:rgba(255,255,255,.07)!important;border:1px solid var(--line);border-radius:10px}
+/* v31: no shape symbols; plain solid gems with a subtle gloss, 6 clearly distinct hues */
+.tile::before{content:""!important;inset:auto!important;left:14%!important;right:14%!important;top:8%!important;height:34%!important;border-radius:40% 40% 50% 50%/60% 60% 40% 40%!important;
+ background:linear-gradient(rgba(255,255,255,.55),rgba(255,255,255,0))!important;filter:none!important}
+.tile.star::before{content:none!important}
+.tile.red,.red{background:radial-gradient(circle at 50% 35%,#ff6b6b,#e01b2f 70%,#9a0c1e)!important;--gc:#ff3045}
+.tile.orange,.orange{background:radial-gradient(circle at 50% 35%,#ffb15c,#ff7a00 70%,#b04a00)!important;--gc:#ff8a1a}
+.tile.yellow,.yellow{background:radial-gradient(circle at 50% 35%,#fff07a,#ffd400 70%,#b99300)!important;--gc:#ffe14a}
+.tile.green,.green{background:radial-gradient(circle at 50% 35%,#7dffa0,#11d15b 70%,#067a33)!important;--gc:#2bff7a}
+.tile.blue,.blue{background:radial-gradient(circle at 50% 35%,#7cc4ff,#1e6bff 70%,#0b35a8)!important;--gc:#3d8bff}
+.tile.pink,.pink{background:radial-gradient(circle at 50% 35%,#ff9cf0,#d63cff 70%,#7a1499)!important;--gc:#e650ff}
