@@ -283,3 +283,12 @@ footer{background:rgba(8,10,36,.75)!important;border-top:1px solid var(--line);b
 .chemo{display:flex;justify-content:space-between;padding:6px 0}.chemo button{background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:10px;font-size:22px;padding:3px 6px}
 .chrow{display:flex;gap:6px}.chrow input{flex:1;min-width:0;font-size:16px;padding:9px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.08);color:#fff}
 .chrow .btn{padding:0 14px}#chat input,#chat *{touch-action:manipulation!important;-webkit-user-select:text;user-select:text}
+
+/* v33: pop-up text always above board, tray and dragged piece */
+#board,#rack,#tray,.board,.rack{isolation:isolate}
+#toast{z-index:1000!important;position:fixed;background:linear-gradient(135deg,#4a4be0,#8a2fe0)!important;opacity:0;text-shadow:0 1px 2px #0008;box-shadow:0 6px 24px #000a,0 0 18px rgba(164,60,255,.6)!important;pointer-events:none;max-width:86vw;text-align:center}
+#banner{position:relative;z-index:900;background:#1e1b5c!important}
+#tbar{z-index:950!important;background:#1e1b5c!important}
+#prev{z-index:900}
+#chat{z-index:1100}#overlay{z-index:1200}#pmenu{z-index:1150}#onl{z-index:1250}
+.drag,.drag.set{z-index:800!important}
