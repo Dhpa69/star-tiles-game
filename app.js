@@ -56,7 +56,7 @@ function render(){setTimeout(fit,0);clearTimeout(render.sv);render.sv=setTimeout
   const disp=L.pieceTiles(rack,s,o,0,0);for(let j=0;j<3;j++){const d=document.createElement('div');d.className='rt';if(!hidden)d.innerHTML=tileHTML(disp[j].color);set.appendChild(d);}
   if(!hidden){const rb=document.createElement('button');rb.className='rot';rb.textContent='↻';rb.dataset.s=s;set.appendChild(rb);}else set.classList.add('empty');
   rk.appendChild(set);}
- $('s0').textContent=g.scores[0];$('s1').textContent=g.scores[1];if(tally){$('s'+tally.who).textContent=tally.base.toLocaleString();}if(g.pot!==undefined)delete g.pot; // old saves
+ $('s0').textContent=g.scores[0].toLocaleString();$('s1').textContent=g.scores[1].toLocaleString();if(tally){$('s'+tally.who).textContent=tally.base.toLocaleString();}if(g.pot!==undefined)delete g.pot; // old saves
  $('n0').textContent=NAMES()[0];$('n1').textContent=NAMES()[1];$('n0').className=g.turn===0?'on':'';$('n1').className=g.turn===1?'on':'';
  const mv=Math.min(g.moves[g.turn]+1,10),fin=L.isFinal(g)&&!g.over;$('banner').textContent=g.over?'GAME OVER':(fin?'FINAL MOVE!':'MOVE '+mv+' / 10');$('banner').className=fin?'final':'';setTimeout(updReplay,0);
  const fr=g.power[g.turn];const bf=bx();$('badge').textContent=bf>1?'x'+bf:(fr>0?fr:'50🪙');$('power').className='btn'+(boost?' on':'');const cw=g.mode==='pvp'?g.turn:meIdx();$('coinN').textContent=g.coins[cw];
@@ -491,8 +491,10 @@ function floatAt(r,c,txt,col,cls,keep){const bd=$('board'),R=bd.getBoundingClien
 function plainPop(tot){if(!tot||tot==='+0')return;let L=$('celeb');if(!L){L=document.createElement('div');L.id='celeb';L.innerHTML='<canvas></canvas><div class="cw"></div>';document.body.appendChild(L);}
  ++celebRun;const cw=L.querySelector('.cw');L.className='show plain';cw.innerHTML='<span class="cwt"></span>';cw.firstChild.textContent=tot;cw.style.animation='none';void cw.offsetWidth;cw.style.animation='';
  const run=celebRun;setTimeout(()=>{if(run===celebRun)L.classList.add('out');},1000);setTimeout(()=>{if(run===celebRun)L.className='';},1500);}
-// v42: keep x2/x3 visible when a tile (placed, preview, ghost) covers a multiplier square
+// v43: x2/x3 mark engraved on the tile face + thin inner ring (tiles and stars on bonus squares)
 (function(){const R=render;render=function(){R.apply(this,arguments);const bd=$('board');if(!bd)return;
  for(const cell of bd.children){const r=+cell.dataset.r,c=+cell.dataset.c,m=L.mult(r,c);if(m<2)continue;
-  const t=cell.querySelector('.tile'),gh=cell.classList.contains('gok')||cell.classList.contains('gbad');if(!t&&!gh)continue;if(t&&t.querySelector('em'))continue;
-  if(cell.querySelector('.mbadge'))continue;const b=document.createElement('b');b.className='mbadge m'+m;b.textContent='x'+m;cell.appendChild(b);}};})();
+  const t=cell.querySelector('.tile:not(.pop)');if(!t||t.querySelector('.mmark'))continue;t.classList.add('onm'+m);const b=document.createElement('i');b.className='mmark';b.textContent='x'+m;t.appendChild(b);}};})();
+
+// v43: shrink score digits so the header never overlaps
+(function(){const R=render;render=function(){R.apply(this,arguments);for(const id of ['s0','s1']){const e=$(id);if(!e)continue;const n=e.textContent.length;e.dataset.len=n>=9?'xl':n>=7?'l':n>=6?'m':'s';e.style.fontSize='';let fs=parseFloat(getComputedStyle(e).fontSize),k=0;while(e.scrollWidth>e.clientWidth+1&&fs>10&&k++<20){fs-=1;e.style.fontSize=fs+'px';}}};})();
