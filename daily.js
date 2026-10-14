@@ -28,9 +28,9 @@ const _f=finish;window.finish=finish=function(){if(!g||g.mode!=='daily')return _
 const _se=showEnd;window.showEnd=showEnd=function(){_se.apply(this,arguments);if(!g||g.mode!=='daily'){$('endRe').style.display='';const sb=$('endShare');if(sb)sb.style.display='none';}};
 // autosave/resume: daily is not resumable (keeps the seed honest)
 const _as=autosave;window.autosave=autosave=function(){if(g&&g.mode==='daily')return;return _as.apply(this,arguments);};
-function dBtn(){let b=$('dailyBtn');if(!b){b=document.createElement('button');b.className='btn big daily-open';b.id='dailyBtn';$('misBtn').after(b);b.onclick=startDaily;}
+function dBtn(){let b=$('dailyBtn');if(!b){b=document.createElement('button');b.className='btn big daily-open';b.id='dailyBtn';$('misBtn').after(b);b.onclick=()=>window.startDaily();}
  const r=today();b.innerHTML=r?'🗓 Daily #'+num(day())+' · '+r.score.toLocaleString()+' ✓ <small>tap to share / replay</small>':'🗓 Daily puzzle #'+num(day())+' <small>same board for everyone</small>';
- if(r){b.onclick=()=>{if(confirm('Share today\'s result? (Cancel = practice replay)'))share(r);else startDaily();};}else b.onclick=startDaily;}
+ if(r){b.onclick=()=>{if(confirm('Share today\'s result? (Cancel = practice replay)'))share(r);else window.startDaily();};}else b.onclick=()=>window.startDaily();}
 dBtn();setInterval(dBtn,60000);
 if(/[?&]daily\b/.test(location.search))setTimeout(()=>{if($('pname').value.trim())startDaily();else say('Enter your name, then tap Daily puzzle');},600);
 })();
