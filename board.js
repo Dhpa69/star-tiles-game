@@ -25,7 +25,7 @@ const _f=finish;window.finish=finish=function(){const G=g;const r=_f.apply(this,
  if((profile.wins|0)>=10)unlock('win10');if(sc>=20000)unlock('g20k');if(sc>=100000)unlock('g100k');
  if(G.mode==='daily'){unlock('daily');if(Object.keys(LS('startiles.daily',{})).length>=7)unlock('daily7');}
  if(G.mode==='online')unlock('online');
- if(G.mode==='ai'&&G.resigned==null)submit('ai',sc);if(G.mode==='online')submit('online',sc);}catch(e){console.warn(e);}return r;};
+ if(!G._lb){G._lb=1;if(G.mode==='ai'&&G.resigned==null)submit('ai',sc);if(G.mode==='online')submit('online',sc);}}catch(e){console.warn(e);}return r;};
 // ---- panel ----
 function achBtn(){let b=$('lbBtn');if(!b){b=document.createElement('button');b.className='btn big lb-open';b.id='lbBtn';($('dailyBtn')||$('misBtn')).after(b);b.onclick=open;}
  b.innerHTML='🏆 Leaderboard &amp; achievements <small>'+Object.keys(got()).length+'/'+ACH.length+' unlocked</small>';}
