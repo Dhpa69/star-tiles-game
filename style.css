@@ -414,3 +414,6 @@ html.native .installHint,html.native .a2hs{display:none!important}
 .lbtabs{display:flex;gap:4px;margin:6px 0}.lbtabs button{flex:1;padding:8px 0;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:#cfd8ff;font-weight:800;font-size:12px}.lbtabs button.on{background:linear-gradient(135deg,#5b5cff,#a43cff);color:#fff}
 #lbList{overflow-y:auto;max-height:58vh}.lbo{margin:0;padding:0 0 0 28px;color:#eef2ff}.lbo li{padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.07)}.lbo li span{display:inline-block;width:62%}.lbo li b{float:right;color:#ffd84a}.lbo li.me{background:rgba(91,92,255,.25);border-radius:8px}.lbo em{font-size:10px;color:var(--dim);font-style:normal}
 .lbm{color:#cfd8ff;text-align:center}.achg{display:grid;grid-template-columns:1fr 1fr;gap:6px}.ach{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:12px;padding:8px;text-align:center;opacity:.45;color:#eef2ff;filter:grayscale(1)}.ach.on{opacity:1;filter:none;border-color:#ffd84a}.ach i{font-style:normal;font-size:22px;display:block}.ach b{display:block;font-size:13px}.ach small{color:var(--dim);font-size:11px}
+
+/* v49 ranked */
+.rk{color:#ffd84a!important}.rk small{opacity:.7;font-weight:600}.rkline{color:#ffd84a;font-weight:900}

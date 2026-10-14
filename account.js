@@ -8,8 +8,8 @@ let sb=null,user=null,pushT=null,busyA=false,status='';
 try{if(window.supabase&&supabase.createClient)sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:!native,flowType:'pkce',storageKey:'startiles.sb'}});}catch(e){console.warn('supabase init',e);}
 const $=id=>document.getElementById(id);
 function misState(){try{return JSON.parse(localStorage.getItem('startiles.missions'))||null;}catch(e){return null;}}
-function localSnap(){const m=misState();return {display_name:profile.name||'Player',coins:Math.max(0,profile.coins|0),stats:{games:profile.games|0,wins:profile.wins|0},missions:m||{},streak:m?{streak:m.streak||1,lastDay:m.lastDay||m.day}:{}};}
-function applyCloud(row){if(!row)return;profile.coins=Math.max(0,row.coins|0);if(row.display_name)profile.name=row.display_name;const st=row.stats||{};profile.games=st.games|0;profile.wins=st.wins|0;
+function localSnap(){const m=misState();return {display_name:profile.name||'Player',coins:Math.max(0,profile.coins|0),stats:{games:profile.games|0,wins:profile.wins|0,rk:profile.rk||null,rating:profile.rk?profile.rk.rating:1000,ext:profile.ext||null},missions:m||{},streak:m?{streak:m.streak||1,lastDay:m.lastDay||m.day}:{}};}
+function applyCloud(row){if(!row)return;profile.coins=Math.max(0,row.coins|0);if(row.display_name)profile.name=row.display_name;const st=row.stats||{};profile.games=st.games|0;profile.wins=st.wins|0;if(st.rk&&(!profile.rk||(st.rk.games|0)>=(profile.rk.games|0)))profile.rk=st.rk;if(st.ext)profile.ext=Object.assign(profile.ext||{},st.ext);
  if(row.missions&&row.missions.day){const cur=misState();if(!cur||cur.day<=row.missions.day)localStorage.setItem('startiles.missions',JSON.stringify(row.missions));}
  profile.cloudAt=row.updated_at;_saveLocal();if(typeof g!=='undefined'&&g&&!g.over&&g.coins&&!(typeof isOn==='function'&&isOn())){if(typeof meIdx==='function')g.coins[meIdx()]=profile.coins;else g.coins[0]=profile.coins;}try{showProfile();misBtn();}catch(e){}}
 async function pull(){const {data,error}=await sb.from('profiles').select('*').eq('id',user.id).maybeSingle();if(error)throw error;return data;}
