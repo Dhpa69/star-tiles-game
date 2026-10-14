@@ -501,3 +501,5 @@ body.sf-comet .tile.star{filter:drop-shadow(-5px 2px 5px rgba(255,216,74,.85)) d
 #mygames{overflow-x:hidden!important}#mygames .mg{width:100%;box-sizing:border-box;min-width:0}#mygames .mgm{flex:1 1 0!important;min-width:0!important;overflow:hidden}
 #mygames .mgm b{display:inline-block;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
 body.homeopen #celeb,body.homeopen .flt,body.homeopen .fxh,body.homeopen #banner,body.homeopen #tbar{visibility:hidden!important}
+/* v57: frozen while an ad is on screen */
+body.adpause *,body.adpause *::before,body.adpause *::after{animation-play-state:paused!important;transition:none!important}

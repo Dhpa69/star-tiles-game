@@ -1,7 +1,7 @@
 // v54: freeze protection – AI in a Web Worker, input-lock watchdog, error recovery
 (function(){
 let W=null,wid=0;const cbs={};
-function worker(){if(W!==null)return W;try{W=new Worker('ai-worker.js?v=56');W.onmessage=e=>{const c=cbs[e.data.id];delete cbs[e.data.id];if(c)c(e.data);};W.onerror=()=>{W=false;Object.keys(cbs).forEach(k=>{const c=cbs[k];delete cbs[k];c({ok:false});});};}catch(e){W=false;}return W;}
+function worker(){if(W!==null)return W;try{W=new Worker('ai-worker.js?v=57');W.onmessage=e=>{const c=cbs[e.data.id];delete cbs[e.data.id];if(c)c(e.data);};W.onerror=()=>{W=false;Object.keys(cbs).forEach(k=>{const c=cbs[k];delete cbs[k];c({ok:false});});};}catch(e){W=false;}return W;}
 function snap(G){const {rng,...rest}=G;return JSON.parse(JSON.stringify(rest));}
 // cb(plan) gets a plan whose blast (if any) is already applied to G, like L.aiPlan
 window.planAI=function(G,level,cb){window.aiThinking=true;const done=m=>{window.aiThinking=false;cb(m);};
@@ -13,7 +13,7 @@ window.planAI=function(G,level,cb){window.aiThinking=true;const done=m=>{window.
  try{w.postMessage({id,G:snap(G),level});}catch(e){fin=true;clearTimeout(to);delete cbs[id];sync();}};
 // watchdog: input lock stuck >8s (not counting AI thinking / a big celebration on screen / app hidden) → unlock and continue
 let since=0;
-setInterval(()=>{try{if(!busy||window.aiThinking||document.hidden){since=0;return;}
+setInterval(()=>{try{if(!busy||window.aiThinking||document.hidden||window.adPaused){since=0;return;}
  const celeb=document.getElementById('celeb');if(celeb&&getComputedStyle(celeb).display!=='none'&&celeb.classList.contains('show')){since=Math.max(since,Date.now()-4000);}
  if(!since){since=Date.now();return;}
  if(Date.now()-since>8000){since=0;console.warn('watchdog: unlocking stuck input');unstick();}}catch(e){}},1000);
@@ -48,3 +48,20 @@ window.wakeAudio=wakeAudio;
 addEventListener('pageshow',()=>wakeAudio('pageshow'));addEventListener('focus',()=>wakeAudio('focus'));
 try{const A=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.App;if(A&&A.addListener){A.addListener('resume',()=>wakeAudio('resume'));A.addListener('appStateChange',s=>{if(s&&s.isActive)wakeAudio('appState');});}}catch(e){}
 document.addEventListener('resume',()=>wakeAudio('cordova-resume'),false);
+// v57: pause everything while a full-screen ad is showing (replay, animations, count-ups, sounds, AI turn, watchdog)
+(function(){const oST=window.setTimeout.bind(window),oRAF=window.requestAnimationFrame.bind(window),oSI=window.setInterval.bind(window);
+ let paused=false,q=[],rq=[],safety=null;
+ window.setTimeout=function(fn,ms,...a){if(typeof fn!=='function')return oST(fn,ms,...a);return oST(()=>{if(paused)q.push(()=>fn(...a));else fn(...a);},ms);};
+ window.requestAnimationFrame=function(fn){return oRAF(t=>{if(paused)rq.push(fn);else fn(t);});};
+ window.setInterval=function(fn,ms,...a){if(typeof fn!=='function')return oSI(fn,ms,...a);return oSI(()=>{if(!paused)fn(...a);},ms);};
+ function pause(why){if(paused)return;paused=true;window.adPaused=true;document.body.classList.add('adpause');
+  try{const c=window._audioCtx&&window._audioCtx();if(c&&c.state==='running')c.suspend().catch(()=>{});}catch(e){}
+  clearTimeout(safety);safety=oST(()=>resume('safety'),120000);}
+ function resume(why){if(!paused)return;paused=false;window.adPaused=false;document.body.classList.remove('adpause');clearTimeout(safety);
+  try{window.wakeAudio&&wakeAudio('ad');const c=window._audioCtx&&window._audioCtx();if(c&&c.state!=='running')c.resume().catch(()=>{});}catch(e){}
+  const a=q;q=[];a.forEach(f=>{try{f();}catch(e){console.error(e);}});const r=rq;rq=[];r.forEach(f=>oRAF(f));}
+ window.StPause={pause,resume,get paused(){return paused;}};
+ try{const AD=window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&Capacitor.Plugins.AdMob;if(AD&&AD.addListener){
+  ['interstitialAdShowed','onRewardedVideoAdShowed','onRewardedInterstitialAdShowed'].forEach(ev=>AD.addListener(ev,()=>pause(ev)));
+  ['interstitialAdDismissed','interstitialAdFailedToShow','onRewardedVideoAdDismissed','onRewardedVideoAdFailedToShow','onRewardedInterstitialAdDismissed','onRewardedInterstitialAdFailedToShow'].forEach(ev=>AD.addListener(ev,()=>oST(()=>resume(ev),150)));}}catch(e){}
+})();
