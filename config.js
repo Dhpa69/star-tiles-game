@@ -19,3 +19,4 @@ window.ST_CONFIG={
   rewarded:'ca-app-pub-3940256099942544/1712485313',
   testing:true, rewardCoins:25, rewardPerDay:5, minGapSec:120}
 };
+window.ST_LAUNCH=location.search; // v53: keep invite params before the room-link handler clears the URL
