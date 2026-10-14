@@ -190,3 +190,8 @@ console.log('ui scripts parse ok');
  G.board[3][3]={star:true};G.board[6][6]={star:true};G.board[3][1]={color:'red'};G.board[3][5]={color:'yellow'};G.board[3][6]={color:'yellow'};
  const pv=L.previewMove(G,[{r:3,c:2,color:'red'},{r:2,c:2,color:'red'},{r:3,c:4,color:'yellow'}],false);
  const s=pv.stars.find(q=>q.r===3&&q.c===3);a.ok(s);a.deepStrictEqual(s.colors.slice().sort(),['red','yellow']);a.ok(!pv.stars.some(q=>q.r===6));a.strictEqual(pv.score,4*20*2+4*20);console.log('v38 ok');}
+// v46 Master
+{const L2=require('./logic.js');let s=77;const r=()=>(s=(s*16807)%2147483647)/2147483647;const G=L2.newGame('ai',r);G.rv=2;let worst=0;
+ for(let k=0;k<6&&!G.over;k++){const t=Date.now();const m=L2.aiPlan(G,'master');worst=Math.max(worst,Date.now()-t);if(m.swap&&L2.swap(G))continue;
+  const pv=L2.previewMove(G,m.pl,m.boost);if(m.pl.length&&!L2.validPiece(G.board,[],m.pl.slice(0,3)))throw new Error('master invalid');L2.commit(G,m.pl,m.boost);}
+ if(worst>2200)throw new Error('master too slow '+worst);console.log('v46 master ok, worst '+worst+'ms');}

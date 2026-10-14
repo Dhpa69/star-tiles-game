@@ -29,7 +29,7 @@ function loadProfile(){let p={};try{p=JSON.parse(localStorage.getItem(PKEY))||{}
 let profile=loadProfile();
 function saveProfile(){profile.updatedAt=new Date().toISOString();localStorage.setItem(PKEY,JSON.stringify(profile));}
 saveProfile();
-const DL={easy:'EASY',medium:'MEDIUM',hard:'HARD',expert:'EXPERT'};
+const DL={easy:'EASY',medium:'MEDIUM',hard:'HARD',expert:'EXPERT',master:'MASTER'};
 const isOn=()=>g&&g.mode==='online',meIdx=()=>isOn()?Online.st.me:0;
 const NAMES=()=>isOn()?g.names.map(x=>(x||'PLAYER').toUpperCase()):[(profile.name||'PLAYER').toUpperCase(),g.mode==='ai'?'COMPUTER ('+DL[profile.difficulty]+')':'PLAYER 2'];
 const placed=()=>pieces.flatMap(p=>p.tiles);

@@ -400,3 +400,7 @@ footer{background:rgba(8,10,36,.75)!important;border-top:1px solid var(--line);b
 .getapp{grid-column:1/-1;color:#eef2ff;text-align:center;line-height:1.5}.chtool{width:34px;height:34px;padding:0;margin-right:4px}
 .supp{display:block;text-align:center;text-decoration:none}
 html.native .installHint,html.native .a2hs{display:none!important}
+/* v46 Master difficulty */
+.diff button{font-size:clamp(9px,2.7vw,12px)!important;letter-spacing:-.3px;min-width:0;white-space:nowrap;padding-left:1px!important;padding-right:1px!important}
+.diff button.master{flex:1.3;color:#ffd84a!important;border-color:rgba(255,216,74,.55)!important;background:linear-gradient(135deg,rgba(255,176,32,.14),rgba(164,60,255,.18))!important;text-shadow:0 0 8px rgba(255,216,74,.5)}
+.diff button.master.on{background:linear-gradient(135deg,#ffb020,#ff5a1a 55%,#a43cff)!important;color:#1a0f00!important;text-shadow:none;box-shadow:0 0 14px rgba(255,150,40,.6)}

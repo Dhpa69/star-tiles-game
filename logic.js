@@ -134,8 +134,8 @@ function expertMove(g,ms){useRules(g);const t0=Date.now(),dl=ms||1300,b=g.board,
  // rerank top candidates with exact follow-up: best score my remaining pieces could make next turn on that board
  all.sort((x,y)=>y.v-x.v);const top=all.slice(0,30);let best=null;
  for(const n of top){let f=0;if(!final&&Date.now()-t0<dl){const rest=sets.filter(s=>!n.used.includes(s));f=bestOnePiece(n.board,rack,rest,t0,dl);}
-  const tv=n.score+W*(0.5*f-4*pairsValue(n.board));if(!best||tv>best.tv)best={...n,tv};}
- return best||{pl:[],score:0,used:[]};}
+  const tv=n.score+W*(0.5*f-4*pairsValue(n.board));n.tv=tv;n.f=f;if(!best||tv>best.tv)best={...n,tv};}
+ if(best)best.top=top;return best||{pl:[],score:0,used:[]};}
 function expertPlan(g){const ms=1300;let bl=null,swap=false;
  if(false){const fits=countFits(g);
   if(fits<24){let bb=null;for(const type of ['cross','bomb'])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const cells=blastCells(type,r,c);
@@ -147,13 +147,35 @@ function expertPlan(g){const ms=1300;let bl=null,swap=false;
  if(!m.pl.length&&!m.score&&g.swaps[g.turn]>0&&countFits(g)<6&&!bl)swap=true;
  const boost=aiBoost(g,m.score,200);
  return {blast:bl,pl:m.score>0||m.pl.length?m.pl:[],boost,swap};}
+// ---- v46 MASTER: Expert candidates + opponent best-reply denial + smarter Double, time-boxed ~1.4s ----
+function masterMove(g,ms){useRules(g);const t0=Date.now(),dl=ms||1400,me=g.turn,op=1-me,rack=g.racks[me];
+ const ex=expertMove(g,Math.round(dl*0.55));if(!ex.top||!ex.top.length)return ex;
+ const oppLeft=g.moves[op]<MOVES,myLeft=MOVES-g.moves[me]-1;
+ // dedupe + also always consider the pure top-score candidate
+ const seen=new Set(),cand=[];for(const n of ex.top.slice().sort((a,b)=>b.tv-a.tv)){const k=n.pl.map(t=>t.r*N+t.c).sort((a,b)=>a-b).join(',');if(seen.has(k))continue;seen.add(k);cand.push(n);}
+ const oppRack=g.racks[op];let best=null;
+ for(const n of cand.slice(0,16)){let o=0;
+  if(oppLeft&&Date.now()-t0<dl*0.92){const fake={board:n.board,racks:[oppRack,oppRack],turn:0,power:[0,0],coins:[0,0],moves:[g.moves[op],0],rv:g.rv,orient:[[0,0,0],[0,0,0]]};
+   o=aiMove(fake,{beam:10,maxPieces:3,ms:45}).score;}
+  const left=myLeft>0?1:0;const v=n.score-0.6*o+left*(0.45*(n.f||0)-4*pairsValue(n.board));
+  if(!best||v>best.v)best={...n,v,opp:o};}
+ return best||ex;}
+function masterBoost(g,score){const free=g.power[g.turn];if(score<=0||free<=0)return false;const left=MOVES-g.moves[g.turn];
+ // save free charges for the biggest moves: use when the move is big, or when moves are running out
+ if(left<=free||score>=900||(left<=3&&score>=300))return {d:1,t:0};return false;}
+function masterPlan(g){let bl=null,swap=false;
+ if(canPower(g)&&g.power[g.turn]>1&&countFits(g)<16){let bb=null;for(const type of ['cross','bomb'])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const cells=blastCells(type,r,c);const n=cells.filter(([y,x])=>g.board[y][x]&&!g.board[y][x].star).length-cells.filter(([y,x])=>g.board[y][x]&&g.board[y][x].star).length*2;if(!bb||n>bb.n)bb={type,r,c,n};}
+  if(bb&&bb.n>=5&&aiMove(g,{beam:60,maxPieces:3,ms:150}).score<100)bl={type:bb.type,r:bb.r,c:bb.c,...blast(g,bb.type,bb.r,bb.c)};}
+ const m=masterMove(g,bl?1150:1400);
+ if(!m.pl.length&&!m.score&&g.swaps[g.turn]>0&&countFits(g)<6&&!bl)swap=true;
+ return {blast:bl,pl:m.score>0||m.pl.length?m.pl:[],boost:bl?false:masterBoost(g,m.score),swap};}
 // AI stacking: Triple beats Double for the same charge, so the AI stacks Triples using FREE charges only
 // (keeps coins). Big move -> 1 Triple; huge move or last move -> all free charges.
 function aiBoost(g,score,at){const free=g.power[g.turn];if(score<=0||free<=0)return false;
  if(score>=at||isFinal(g))return {d:1,t:0};return false;} // v34: Double only, once per move
 function single(b){const B=norm(b);return B.d+B.t>0?{d:1,t:0}:false;} // v34: new moves = one Double max (old logs replay as recorded via commit/capB)
 const LEVELS={easy:{beam:3,maxPieces:1,ms:200},medium:{beam:40,maxPieces:3,ms:600},hard:{beam:400,maxPieces:3,ms:450,saveStars:true,boostAt:200}};
-function aiPlan(g,level){useRules(g);level=level||'medium';if(level==='expert')return expertPlan(g);const opt=LEVELS[level]||LEVELS.medium,rng=g.rng||Math.random;
+function aiPlan(g,level){useRules(g);level=level||'medium';if(level==='expert')return expertPlan(g);if(level==='master')return masterPlan(g);const opt=LEVELS[level]||LEVELS.medium,rng=g.rng||Math.random;
  if(level==='easy'){ // often a random weak move, 1 piece, rarely power-ups
   if(rng()<0.5){const rack=g.racks[g.turn],opts=[];for(let s=0;s<3;s++){if(!rack[3*s])continue;for(const o of [0,1])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const t=pieceTiles(rack,s,o,r,c);if(validPiece(g.board,[],t))opts.push(t);}}
    return {blast:null,pl:opts.length&&rng()<0.7?opts[Math.floor(rng()*opts.length)]:[],boost:false};}
@@ -169,6 +191,6 @@ function aiPlan(g,level){useRules(g);level=level||'medium';if(level==='expert')r
  const m=aiMove(g,opt);return {blast:bl,pl:m.pl,boost:m.boost};}
 // v23: resign = player p quits; the other player wins (gets the win coins)
 function resign(g,p){if(g.over)return false;g.over=true;g.resigned=p;g.winner=1-p;g.coins[1-p]+=WIN_COINS;return true;}
-const api={useRules,evaluate,single,resign,norm,capB,charges,spendCharge,dbl,expertMove,expertPlan,pairsValue,previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
+const api={useRules,evaluate,single,resign,norm,capB,charges,spendCharge,dbl,expertMove,expertPlan,masterMove,masterPlan,pairsValue,previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
 if(typeof module!=='undefined')module.exports=api;else root.Logic=api;
 })(this);
