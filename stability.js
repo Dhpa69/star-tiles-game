@@ -1,7 +1,7 @@
 // v54: freeze protection – AI in a Web Worker, input-lock watchdog, error recovery
 (function(){
 let W=null,wid=0;const cbs={};
-function worker(){if(W!==null)return W;try{W=new Worker('ai-worker.js?v=54');W.onmessage=e=>{const c=cbs[e.data.id];delete cbs[e.data.id];if(c)c(e.data);};W.onerror=()=>{W=false;Object.keys(cbs).forEach(k=>{const c=cbs[k];delete cbs[k];c({ok:false});});};}catch(e){W=false;}return W;}
+function worker(){if(W!==null)return W;try{W=new Worker('ai-worker.js?v=55');W.onmessage=e=>{const c=cbs[e.data.id];delete cbs[e.data.id];if(c)c(e.data);};W.onerror=()=>{W=false;Object.keys(cbs).forEach(k=>{const c=cbs[k];delete cbs[k];c({ok:false});});};}catch(e){W=false;}return W;}
 function snap(G){const {rng,...rest}=G;return JSON.parse(JSON.stringify(rest));}
 // cb(plan) gets a plan whose blast (if any) is already applied to G, like L.aiPlan
 window.planAI=function(G,level,cb){window.aiThinking=true;const done=m=>{window.aiThinking=false;cb(m);};
@@ -27,3 +27,9 @@ addEventListener('error',onErr);addEventListener('unhandledrejection',onErr);
 // coming back to the app: resume audio and make sure nothing is stuck
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){since=0;try{const c=window._audioCtx;if(c&&c.state!=='running')c.resume().catch(()=>{});}catch(e){}}});
 })();
+
+// v55: never open the keyboard by itself – inputs get focus only right after a real tap/key
+(function(){let last=0;const mark=()=>{last=Date.now();};['pointerdown','touchstart','mousedown','keydown'].forEach(t=>addEventListener(t,mark,true));
+ document.addEventListener('focusin',e=>{const t=e.target;if(t&&/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)&&!t.dataset.allowFocus&&Date.now()-last>1200){t.blur();}},true);
+ document.querySelectorAll('[autofocus]').forEach(el=>el.removeAttribute('autofocus'));
+ addEventListener('input',e=>{if(e.target&&e.target.id==='pname')e.target.classList.remove('needname');});})();

@@ -101,5 +101,21 @@ if(typeof Online!=='undefined'&&Online.act){const _a=Online.act.bind(Online);Onl
   setTimeout(()=>fetch(C.supabaseUrl+'/functions/v1/notify-turn',{method:'POST',headers:{'content-type':'application/json',apikey:C.supabaseAnon,Authorization:'Bearer '+C.supabaseAnon},
    body:JSON.stringify({room:code,from_device:DEV,from_name:profile.name||'Player',scores:[g.scores[me],g.scores[1-me]],over:!!g.over})}).catch(()=>{}),300);}}catch(e){}return r;};}
 if(PN&&LS('startiles.push',null))askPush(); // re-register on launch (token can change)
+
+
+// v55: free version – the 1st power-up per game is free as before; a 2nd one in the same game needs a rewarded ad first.
+// Remove Ads / Pro owners skip the ad. Web (no ads) keeps the old behaviour. Only gates the local player's choice, never game sync.
+const humanIdx=()=>{try{return isOn()?meIdx():g.mode==='pvp'?g.turn:0;}catch(e){return 0;}};
+const puUsed=G=>(G._pu=G._pu||[0,0]);
+const _cm=L.commit;L.commit=function(G,pl,b){const mover=G&&G.turn;const r=_cm.apply(this,arguments);try{if(G===g&&b&&(r.doubles|0)>0){puUsed(G)[mover]++;if(G._adOk)G._adOk[mover]=0;}}catch(e){}return r;};
+const _bl=L.blast;L.blast=function(G){const mover=G&&G.turn;const r=_bl.apply(this,arguments);try{if(r&&G===g){puUsed(G)[mover]++;if(G._adOk)G._adOk[mover]=0;}}catch(e){}return r;};
+const gateOn=()=>native&&!noAds()&&adsOk();
+document.addEventListener('click',async e=>{const b=e.target.closest&&e.target.closest('#pmenu [data-p]');if(!b||!['double','bomb','cross'].includes(b.dataset.p))return;
+ if(!gateOn()||!g||g.over)return;const p=humanIdx();if(g.turn!==p)return;const used=puUsed(g)[p];g._adOk=g._adOk||[0,0];if(used<1||g._adOk[p])return;
+ e.preventDefault();e.stopImmediatePropagation();
+ if(!confirm('Your 1st power-up this game was free.\nWatch a short ad to use another one?\n(Remove Ads / Pro skips this.)'))return;
+ say('Loading ad…');try{await AD.prepareRewardVideoAd({adId:C.admob.rewarded,isTesting:!!C.admob.testing,npa});const r=await AD.showRewardVideoAd();
+  if(r){g._adOk[p]=1;hap('success');b.click();}else say('Ad not finished – power-up not used');}catch(err){say('No ad available right now – try again later');}},true);
+window.StGate={puUsed,gateOn};
 window.StNative={DEV,openShop,noAds,askPush,interstitial};
 })();

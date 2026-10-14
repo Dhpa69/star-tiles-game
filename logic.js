@@ -9,7 +9,7 @@ function deal(rng){return [].concat(piece(rng),piece(rng),piece(rng));}
 function newGame(mode,rng,first){rng=rng||Math.random;
  const b=[];for(let r=0;r<N;r++){b.push([]);for(let c=0;c<N;c++)b[r].push(null);}
  [[3,3],[3,4],[4,3],[4,4]].forEach(([r,c])=>b[r][c]={color:rndColor(rng)});
- return {orient:[[0,0,0],[0,0,0]],board:b,mode,rv:2,turn:first===1?1:0,moves:[0,0],scores:[0,0],racks:[deal(rng),deal(rng)],power:[2,2],swaps:[1,1],coins:[START_COINS,mode==='ai'?0:START_COINS],over:false,rng};}
+ return {orient:[[0,0,0],[0,0,0]],board:b,mode,rv:2,turn:first===1?1:0,first:first===1?1:0,moves:[0,0],scores:[0,0],racks:[deal(rng),deal(rng)],power:[2,2],swaps:[1,1],coins:[START_COINS,mode==='ai'?0:START_COINS],over:false,rng};}
 const inb=(r,c)=>r>=0&&c>=0&&r<N&&c<N;
 function canPlace(b,r,c){ if(!inb(r,c)||b[r][c])return false;
  if(b.every(row=>row.every(t=>!t)))return true; // empty board: anywhere

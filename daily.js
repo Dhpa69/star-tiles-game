@@ -32,5 +32,5 @@ function dBtn(){let b=$('dailyBtn');if(!b){b=document.createElement('button');b.
  const r=today();b.innerHTML=r?'🗓 Daily #'+num(day())+' · '+r.score.toLocaleString()+' ✓ <small>tap to share / replay</small>':'🗓 Daily puzzle #'+num(day())+' <small>same board for everyone</small>';
  if(r){b.onclick=()=>{if(confirm('Share today\'s result? (Cancel = practice replay)'))share(r);else window.startDaily();};}else b.onclick=()=>window.startDaily();}
 dBtn();setInterval(dBtn,60000);
-if(/[?&]daily\b/.test(location.search))setTimeout(()=>{if($('pname').value.trim())startDaily();else say('Enter your name, then tap Daily puzzle');},600);
+if(/[?&]daily\b/.test(location.search))setTimeout(()=>{if($('pname').value.trim())window.startDaily();else say('Enter your name, then tap Daily puzzle');},600);
 })();

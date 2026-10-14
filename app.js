@@ -195,7 +195,7 @@ function showProfile(){$('muteBtn').textContent=profile.muted?'🔇 Sound: OFF':
 $('muteBtn').onclick=()=>{profile.muted=!profile.muted;saveProfile();showProfile();if(!profile.muted)SFX.chime(60);};
 $('diff').onclick=e=>{const b=e.target.closest('[data-d]');if(!b)return;profile.difficulty=b.dataset.d;saveProfile();showProfile();if(g)render();};
 $('pname').onchange=()=>{profile.name=$('pname').value.trim();saveProfile();if(g)render();};
-g=L.newGame('ai');g.coins[0]=profile.coins;render();showProfile();showResume();$('overlay').classList.add('show');if(!profile.name)setTimeout(()=>$('pname').focus(),300);
+g=L.newGame('ai');g.coins[0]=profile.coins;render();showProfile();showResume();$('overlay').classList.add('show');if(!profile.name)$('pname').classList.add('needname');
 
 // ---- v22: My online games (many rooms at once, Words-With-Friends style) ----
 var gcache;
@@ -287,14 +287,14 @@ function catchUpShow(seed,coins,log){if(!isOn()||!log.length)return;const k=log.
 function roomLink(c){return location.origin+location.pathname+'?room='+c;}
 function copyText(t){if(navigator.clipboard&&window.isSecureContext)return navigator.clipboard.writeText(t);
  return new Promise((ok,no)=>{const ta=document.createElement('textarea');ta.value=t;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;top:0;left:0;opacity:0;font-size:16px';document.body.appendChild(ta);
-  ta.focus();ta.select();ta.setSelectionRange(0,t.length);let r=false;try{r=document.execCommand('copy');}catch(e){}ta.remove();r?ok():no();});}
+  ta.dataset.allowFocus='1';ta.focus();ta.select();ta.setSelectionRange(0,t.length);let r=false;try{r=document.execCommand('copy');}catch(e){}ta.remove();r?ok():no();});}
 function flash(b,t){const o=b.dataset.o||(b.dataset.o=b.textContent);b.textContent=t;clearTimeout(b._t);b._t=setTimeout(()=>b.textContent=o,1500);}
 $('copyCode').onclick=()=>{const c=$('onlcode').textContent.trim();if(!/^[A-Z0-9]{6}$/.test(c))return;copyText(c).then(()=>flash($('copyCode'),'✓ Copied!'),()=>{window.prompt('Copy the room code:',c);});};
 $('shareCode').onclick=()=>{const c=$('onlcode').textContent.trim();if(!/^[A-Z0-9]{6}$/.test(c))return;const url=roomLink(c),text='Play Star Tiles with me! Room code '+c;
  if(navigator.share)navigator.share({title:'Star Tiles',text,url}).catch(()=>{});else copyText(text+' '+url).then(()=>flash($('shareCode'),'✓ Link copied!'),()=>window.prompt('Share this link:',url));};
 (function(){const m=/[?&]room=([A-Za-z0-9 -]{4,14})/.exec(location.search);if(!m)return;const code=Online.clean(decodeURIComponent(m[1]));if(code.length!==6)return;
  try{history.replaceState(null,'',location.pathname);}catch(e){}$('joinCode').value=code;
- const go=()=>{const nm=$('pname').value.trim();if(!nm){$('pname').focus();say('Enter your name, then tap Join');$('joinCode').scrollIntoView({block:'center'});return;}profile.name=nm;saveProfile();joinRoom(code);startWait();};
+ const go=()=>{const nm=$('pname').value.trim();if(!nm){$('pname').classList.add('needname');say('Enter your name, then tap Join');$('joinCode').scrollIntoView({block:'center'});return;}profile.name=nm;saveProfile();joinRoom(code);startWait();};
  setTimeout(go,300);})();
 
 // ---- v32: chat (online games only). Rides the same transport, stored per game, never touches game state ----
@@ -502,3 +502,6 @@ function plainPop(tot){if(!tot||tot==='+0')return;let L=$('celeb');if(!L){L=docu
 // v45: THIS MOVE number auto-fits on every update (never clipped)
 (function(){const R=render;function fitPP(){const e=$('potprev');if(!e)return;e.style.removeProperty('font-size');let fs=parseFloat(getComputedStyle(e).fontSize),k=0;while(e.scrollWidth>e.clientWidth+0.5&&fs>8&&k++<30){fs-=0.5;e.style.setProperty('font-size',fs+'px','important');}}
  render=function(){R.apply(this,arguments);fitPP();};window.fitPP=fitPP;})();
+
+// v55: whoever moved first is shown on the left
+(function(){const R=render;render=function(){R.apply(this,arguments);try{const h=$('hud');if(h)h.classList.toggle('flip',!!(g&&g.first===1));}catch(e){}};})();

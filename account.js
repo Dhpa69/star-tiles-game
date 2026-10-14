@@ -27,7 +27,7 @@ async function syncNow(first){if(!sb||!user||!navigator.onLine)return;setStatus(
   setStatus('Synced ✓');}catch(e){console.warn(e);setStatus('Sync failed: '+(e.message||e));}render2();}
 function setStatus(s){status=s;const el=$('acStatus');if(el)el.textContent=s;}
 // hook local saves -> cloud
-const _save=saveProfile;window.saveProfile=saveProfile=function(){_save.apply(this,arguments);schedulePush();};
+const _save=saveProfile,_saveLocal=(...a)=>_save.apply(null,a);window.saveProfile=saveProfile=function(){_save.apply(this,arguments);schedulePush();};
 const _ms=window.misSave;if(typeof misSave==='function'){window.misSave=misSave=function(s){_ms(s);schedulePush();};}
 // ---- sign in ----
 function rnd(n){const a=new Uint8Array(n);crypto.getRandomValues(a);return [...a].map(b=>b.toString(16).padStart(2,'0')).join('');}

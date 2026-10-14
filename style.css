@@ -458,3 +458,32 @@ body.sf-comet .tile.star{filter:drop-shadow(-5px 2px 5px rgba(255,216,74,.85)) d
 
 /* v53 invites */
 .inv-open{background:linear-gradient(135deg,#20c070,#13a0a0)!important}.inv-open small{display:block;font-size:11px;opacity:.85;font-weight:600}
+
+/* v55 */
+#pname.needname{box-shadow:0 0 0 2px #ffd84a,0 0 14px rgba(255,216,74,.5)!important}
+
+/* v55 compact home */
+#overlay .card.compact{padding:12px 14px!important;gap:0}
+.card.compact h1{font-size:30px!important;margin:2px 0 6px!important}
+.card.compact .btn.big{padding:10px 12px!important;font-size:16px!important;margin:5px 0!important;min-height:0}
+.card.compact .btn.big small{display:inline;font-size:11px;margin-left:6px}
+.card.compact label.pname{margin:4px 0 2px!important;font-size:12px}.card.compact #pname{padding:8px 12px!important;font-size:16px!important}
+.card.compact .hstat{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;font-size:12px;margin:3px 0}.card.compact .hstat>*{margin:0!important;font-size:12px!important}
+.card.compact .diff{margin:4px 0!important}.card.compact .diff button{padding:7px 0!important}
+.card.compact .online{display:flex;gap:6px;align-items:stretch;margin:5px 0;padding:0!important;border:0!important;background:none!important}
+.card.compact .online #hostBtn{flex:1;margin:0!important;font-size:14px!important}.card.compact .online .joinrow{flex:1;display:flex;gap:4px;margin:0!important}
+.card.compact .online .joinrow input{min-width:0;flex:1;font-size:14px!important;padding:6px 8px!important}.card.compact .online .joinrow .btn{padding:6px 10px!important}
+.card.compact #vsP{background:rgba(255,255,255,.07)!important;font-size:14px!important;padding:8px!important}
+.hproxy{display:none!important}
+.htiles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:6px 0}
+.htile{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 2px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:#e6eaff;font-weight:800;font-size:11px}
+.htile i{font-style:normal;font-size:20px;line-height:1}.htile[data-n]:not([data-n=""])::after{content:attr(data-n);position:absolute;top:-5px;right:-3px;background:#ff3b5c;color:#fff;font-size:11px;border-radius:9px;padding:0 6px}
+.hmore{display:none;flex-direction:column;gap:5px;margin:4px 0}.hmore.open{display:flex}.hmore .btn{margin:0!important}
+.card.compact #ver{margin-top:4px}
+/* v55 every panel scrolls inside itself */
+.chcard,.miscard,.acard,.tutc,.lgc,.endc,#overlay .card,#onl .card{max-height:calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow-y:auto!important;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y}
+#shopList,#cosList,#lbList,#mislist,#chlist{-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y}
+/* v55 first mover is always the LEFT player */
+#hud.flip .names{flex-direction:row-reverse}
+#hud.flip .scores>.sw.blue{order:1}#hud.flip #s1{order:2;text-align:left}#hud.flip #pot{order:3}#hud.flip #s0{order:4;text-align:right}#hud.flip .scores>.sw.pink{order:5}
+.card.compact #dailyBtn small{display:none}
