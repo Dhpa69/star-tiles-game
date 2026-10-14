@@ -31,7 +31,7 @@ function saveProfile(){profile.updatedAt=new Date().toISOString();localStorage.s
 saveProfile();
 const DL={easy:'EASY',medium:'MEDIUM',hard:'HARD',expert:'EXPERT',master:'MASTER'};
 const isOn=()=>g&&g.mode==='online',meIdx=()=>isOn()?Online.st.me:0;
-const NAMES=()=>isOn()?g.names.map(x=>(x||'PLAYER').toUpperCase()):[(profile.name||'PLAYER').toUpperCase(),g.mode==='ai'?'COMPUTER ('+DL[profile.difficulty]+')':'PLAYER 2'];
+const NAMES=()=>isOn()?g.names.map(x=>(x||'PLAYER').toUpperCase()):[(profile.name||'PLAYER').toUpperCase(),g.mode==='ai'?'COMPUTER ('+DL[profile.difficulty]+')':g.mode==='daily'?'DAILY #'+(g.dailyN||''):'PLAYER 2'];
 const placed=()=>pieces.flatMap(p=>p.tiles);
 function cur(){const b=g.board.map(r=>r.slice());placed().forEach(p=>b[p.r][p.c]=p.color==='star'?{star:true,fresh:true,mult:L.mult(p.r,p.c)}:{color:p.color,fresh:true});return b;}
 const usedSet=s=>pieces.some(p=>p.s===s);

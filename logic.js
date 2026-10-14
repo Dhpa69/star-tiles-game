@@ -78,8 +78,8 @@ function swap(g,s){if(!canSwap(g))return false;if(g.swaps[g.turn]>0)g.swaps[g.tu
  const p=piece(g.rng);for(let i=0;i<3;i++)g.racks[g.turn][s*3+i]=p[i];g.orient[g.turn][s]=0;return true;}
 function endTurn(g){g.moves[g.turn]++;g.usedPower=false;
  if(g.moves[0]>=MOVES&&g.moves[1]>=MOVES){g.over=true;const w=g.scores[0]===g.scores[1]?-1:(g.scores[0]>g.scores[1]?0:1);g.winner=w;
-  delete g.pot;if(w>=0)g.coins[w]+=WIN_COINS;return;}
- g.turn=1-g.turn;refill(g);}
+  delete g.pot;if(w>=0&&!g.solo)g.coins[w]+=WIN_COINS;return;}
+ if(!g.solo)g.turn=1-g.turn;refill(g);}
 function isFinal(g){return g.moves[g.turn]===MOVES-1;}
 // bot search over whole pieces (all 4 orientations); beam = how many first pieces to extend; deadline caps time
 function aiMove(g,opt){useRules(g);opt=opt||{};const beam=opt.beam||40,maxP=opt.maxPieces||3,t0=Date.now(),dl=opt.ms||600;
