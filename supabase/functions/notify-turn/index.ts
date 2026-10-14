@@ -1,7 +1,7 @@
 // Supabase Edge Function: notify-turn
 // POST {room, from_device, from_name, scores:[mine, theirs], over}
 // Sends "Your turn vs <from_name>" to every other device registered for that room (APNs token auth + Web Push).
-// Secrets (supabase secrets set ...): APNS_KEY_P8, APNS_KEY_ID, APNS_TEAM_ID, APNS_BUNDLE_ID, APNS_ENV (sandbox|production),
+// Secrets: APNS_KEY_P8, APNS_KEY_ID, APNS_TEAM_ID, APNS_BUNDLE_ID, APNS_ENV (optional: sandbox|production = which host to try first; the other is tried automatically),
 //                                     VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { SignJWT, importPKCS8 } from "npm:jose@5";
@@ -30,22 +30,28 @@ Deno.serve(async (req) => {
     const { data: rows, error } = await db.from("push_tokens").select("device_id,platform,token,web_sub").contains("rooms", [room]).neq("device_id", from_device).limit(10);
     if (error) throw error;
     const name = String(from_name || "your friend").slice(0, 24);
-    const sc = Array.isArray(scores) ? ` · ${Number(scores[1] || 0).toLocaleString()} – ${Number(scores[0] || 0).toLocaleString()}` : "";
+    const mine = Array.isArray(scores) ? Number(scores[1] || 0) : null, theirs = Array.isArray(scores) ? Number(scores[0] || 0) : null; // scores = [mover, recipient]
+    const sc = mine === null ? "" : `You ${mine.toLocaleString("en-US")} – ${name} ${theirs!.toLocaleString("en-US")}`;
     const title = over ? `Game over vs ${name}` : `Your turn vs ${name}`;
-    const body = over ? `Final score${sc}. Tap to see the result.` : `${name} just played${sc}`;
+    const body = over ? `${sc ? sc + ". " : ""}Tap to see the result.` : `${name} just played.${sc ? " " + sc : ""}`;
     const out: unknown[] = [];
     if (env("VAPID_PRIVATE_KEY")) webpush.setVapidDetails(env("VAPID_SUBJECT") || "mailto:dhaval83@icloud.com", env("VAPID_PUBLIC_KEY"), env("VAPID_PRIVATE_KEY"));
     for (const r of rows ?? []) {
       try {
         if (r.platform === "ios" && r.token && env("APNS_KEY_P8")) {
-          const host = env("APNS_ENV") === "production" ? "api.push.apple.com" : "api.sandbox.push.apple.com";
-          const res = await fetch(`https://${host}/3/device/${r.token}`, {
-            method: "POST",
-            headers: { authorization: `bearer ${await apnsToken()}`, "apns-topic": env("APNS_BUNDLE_ID") || "com.dhavalpatel.startiles", "apns-push-type": "alert", "apns-priority": "10", "apns-collapse-id": `turn-${room}` },
-            body: JSON.stringify({ aps: { alert: { title, body }, sound: "default", "thread-id": room }, room }),
-          });
-          if (res.status === 410 || res.status === 400) await db.from("push_tokens").update({ token: null }).eq("device_id", r.device_id);
-          out.push({ d: r.device_id, apns: res.status });
+          // Xcode builds use sandbox tokens, TestFlight/App Store use production: try the preferred host, fall back to the other on BadDeviceToken
+          const pref = env("APNS_ENV") === "sandbox" ? ["api.sandbox.push.apple.com", "api.push.apple.com"] : ["api.push.apple.com", "api.sandbox.push.apple.com"];
+          let status = 0, reason = "";
+          for (const host of pref) {
+            const res = await fetch(`https://${host}/3/device/${r.token}`, {
+              method: "POST",
+              headers: { authorization: `bearer ${await apnsToken()}`, "apns-topic": env("APNS_BUNDLE_ID") || "com.dhavalpatel.startiles", "apns-push-type": "alert", "apns-priority": "10", "apns-collapse-id": `turn-${room}` },
+              body: JSON.stringify({ aps: { alert: { title, body }, sound: "default", "thread-id": room }, room }),
+            });
+            status = res.status; reason = status === 200 ? "" : ((await res.json().catch(() => ({}))) as { reason?: string }).reason ?? "";
+            if (status === 200 || reason !== "BadDeviceToken") { out.push({ d: r.device_id, apns: status, host, reason }); break; }
+          }
+          if (reason === "BadDeviceToken" || reason === "Unregistered" || status === 410) { await db.from("push_tokens").update({ token: null }).eq("device_id", r.device_id); out.push({ d: r.device_id, apns: status, reason }); }
         } else if (r.platform === "web" && r.web_sub && env("VAPID_PRIVATE_KEY")) {
           await webpush.sendNotification(r.web_sub, JSON.stringify({ title, body, room }), { TTL: 3600, urgency: "high" });
           out.push({ d: r.device_id, web: "ok" });
