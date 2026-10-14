@@ -378,3 +378,11 @@ footer{background:rgba(8,10,36,.75)!important;border-top:1px solid var(--line);b
 .tile.onm2{--mk:#39ffec}.tile.onm3{--mk:#ff6ee0}
 .tile.onm2,.tile.onm3{box-shadow:inset 0 0 0 2px var(--mk),inset 0 0 10px color-mix(in srgb,var(--mk) 35%,transparent),0 0 8px color-mix(in srgb,var(--mk) 45%,transparent)!important}
 .tile.star.onm2 .mmark,.tile.star.onm3 .mmark{bottom:4%;right:6%}
+
+/* v44 account */
+.acct{width:100%;margin:6px 0 0;font-size:15px}
+#account{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:center;z-index:1300;background:rgba(3,5,20,.6)}#account.show{display:flex}
+.acard{gap:8px;display:flex;flex-direction:column}.acard p{color:#eef2ff;margin:4px 2px;line-height:1.4}.acard small{color:var(--dim);text-align:center}
+.apple{display:flex;align-items:center;justify-content:center;gap:8px;background:#000;color:#fff;border:1px solid #fff4;border-radius:12px;font:600 17px -apple-system,system-ui,sans-serif;height:48px}
+.apple:disabled{opacity:.5}.acard .danger{background:rgba(255,59,92,.15)!important;color:#ff8da1!important;border:1px solid rgba(255,59,92,.5)!important}
+.acpriv a{color:#9fb0ff}
