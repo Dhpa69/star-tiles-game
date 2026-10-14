@@ -21,4 +21,6 @@ const nameL=card.querySelector('label.pname');put(nameL);const row=mk('div','hst
 put($q('diff'));put($q('vsAI'));put($q('dailyBtn'));put(card.querySelector('.online'));put($q('vsP'));put(tiles);put(more);put($q('result'));
 ['misBtn','lbBtn','cosBtn','invBtn','acBtn'].forEach(id=>{const e=$q(id);if(e){e.classList.add('hproxy');card.appendChild(e);}});
 card.classList.add('compact');sync();
+// hide the live board while Home is open (nothing shows through)
+const ov=document.getElementById('overlay');const hs=()=>document.body.classList.toggle('homeopen',ov.classList.contains('show'));new MutationObserver(hs).observe(ov,{attributes:true,attributeFilter:['class']});hs();
 })();

@@ -1,7 +1,7 @@
 // v54: freeze protection – AI in a Web Worker, input-lock watchdog, error recovery
 (function(){
 let W=null,wid=0;const cbs={};
-function worker(){if(W!==null)return W;try{W=new Worker('ai-worker.js?v=55');W.onmessage=e=>{const c=cbs[e.data.id];delete cbs[e.data.id];if(c)c(e.data);};W.onerror=()=>{W=false;Object.keys(cbs).forEach(k=>{const c=cbs[k];delete cbs[k];c({ok:false});});};}catch(e){W=false;}return W;}
+function worker(){if(W!==null)return W;try{W=new Worker('ai-worker.js?v=56');W.onmessage=e=>{const c=cbs[e.data.id];delete cbs[e.data.id];if(c)c(e.data);};W.onerror=()=>{W=false;Object.keys(cbs).forEach(k=>{const c=cbs[k];delete cbs[k];c({ok:false});});};}catch(e){W=false;}return W;}
 function snap(G){const {rng,...rest}=G;return JSON.parse(JSON.stringify(rest));}
 // cb(plan) gets a plan whose blast (if any) is already applied to G, like L.aiPlan
 window.planAI=function(G,level,cb){window.aiThinking=true;const done=m=>{window.aiThinking=false;cb(m);};
@@ -25,7 +25,7 @@ window.StStable={unstick};
 const onErr=()=>{if(typeof busy!=='undefined'&&busy&&!window.aiThinking)setTimeout(()=>{if(busy&&!window.aiThinking)unstick();},1500);};
 addEventListener('error',onErr);addEventListener('unhandledrejection',onErr);
 // coming back to the app: resume audio and make sure nothing is stuck
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){since=0;try{const c=window._audioCtx;if(c&&c.state!=='running')c.resume().catch(()=>{});}catch(e){}}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){since=0;wakeAudio('visible');}});
 })();
 
 // v55: never open the keyboard by itself – inputs get focus only right after a real tap/key
@@ -33,3 +33,18 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden){since=0;t
  document.addEventListener('focusin',e=>{const t=e.target;if(t&&/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)&&!t.dataset.allowFocus&&Date.now()-last>1200){t.blur();}},true);
  document.querySelectorAll('[autofocus]').forEach(el=>el.removeAttribute('autofocus'));
  addEventListener('input',e=>{if(e.target&&e.target.id==='pname')e.target.classList.remove('needname');});})();
+
+// v56: sound after backgrounding (iOS) – resume, or rebuild the AudioContext if resume fails / it was closed
+let waking=false;
+function wakeAudio(why){try{if(typeof profile!=='undefined'&&profile.muted)return;const c=window._audioCtx&&window._audioCtx();if(!c)return;
+ if(c.state==='closed'){window._audioReset&&window._audioReset();return;}
+ if(c.state==='running'||waking)return;waking=true;
+ const rebuild=()=>{waking=false;const n=window._audioReset&&window._audioReset();if(n&&n.state!=='running')n.resume().catch(()=>{});};
+ let p;try{p=c.resume();}catch(e){return rebuild();}
+ Promise.resolve(p).then(()=>setTimeout(()=>{waking=false;if(c.state!=='running'&&document.visibilityState==='visible')rebuild();},350)).catch(rebuild);
+ try{if(typeof unlock==='function')unlock();}catch(e){}}catch(e){waking=false;}}
+window.wakeAudio=wakeAudio;
+['touchstart','pointerdown','touchend','keydown'].forEach(t=>addEventListener(t,()=>wakeAudio(t),{capture:true,passive:true}));
+addEventListener('pageshow',()=>wakeAudio('pageshow'));addEventListener('focus',()=>wakeAudio('focus'));
+try{const A=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.App;if(A&&A.addListener){A.addListener('resume',()=>wakeAudio('resume'));A.addListener('appStateChange',s=>{if(s&&s.isActive)wakeAudio('appState');});}}catch(e){}
+document.addEventListener('resume',()=>wakeAudio('cordova-resume'),false);

@@ -487,3 +487,17 @@ body.sf-comet .tile.star{filter:drop-shadow(-5px 2px 5px rgba(255,216,74,.85)) d
 #hud.flip .names{flex-direction:row-reverse}
 #hud.flip .scores>.sw.blue{order:1}#hud.flip #s1{order:2;text-align:left}#hud.flip #pot{order:3}#hud.flip #s0{order:4;text-align:right}#hud.flip .scores>.sw.pink{order:5}
 .card.compact #dailyBtn small{display:none}
+/* v56: home overlay fully opaque; compact layout never squeezes sections */
+#overlay{background:radial-gradient(ellipse at 50% 0%,#1b1f5e 0%,#0b1033 55%,#060920 100%)!important}
+#overlay.show~*,body.homeopen #board,body.homeopen #rack,body.homeopen header{visibility:hidden}
+#overlay .card.compact>*{flex-shrink:0}
+#mygames{max-height:216px!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch;margin:6px 0!important;flex-shrink:0;display:block}
+#mygames .mg{min-height:54px;padding:8px 10px!important;margin:5px 0!important;gap:8px}
+#mygames .mgm{line-height:1.3}#mygames .mgm b{font-size:14px}#mygames .mgm small{font-size:11.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mygames .mgb{display:inline-block;margin-left:6px;vertical-align:1px}
+#mygames .mga{flex:none;min-width:48px;padding:8px 10px!important;font-size:13px!important;margin:0!important}
+#mygames .mga.x{min-width:34px}
+#mygames .mgh{margin:2px 0!important;font-size:14px}
+#mygames{overflow-x:hidden!important}#mygames .mg{width:100%;box-sizing:border-box;min-width:0}#mygames .mgm{flex:1 1 0!important;min-width:0!important;overflow:hidden}
+#mygames .mgm b{display:inline-block;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+body.homeopen #celeb,body.homeopen .flt,body.homeopen .fxh,body.homeopen #banner,body.homeopen #tbar{visibility:hidden!important}

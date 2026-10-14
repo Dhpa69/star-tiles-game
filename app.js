@@ -2,7 +2,7 @@ const L=Logic,$=id=>document.getElementById(id);let tally=null,g,pieces=[],sel=n
 const toast=document.createElement('div');toast.id='toast';document.body.appendChild(toast);
 function say(t){toast.textContent=t;toast.style.opacity=1;clearTimeout(say.t);say.t=setTimeout(()=>toast.style.opacity=0,1300);}
 // ---- Web Audio synth SFX (no files); unlocked on first tap for iOS ----
-const SFX=(()=>{let ctx=null;const get=()=>{if(!ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;try{ctx=new C();}catch(e){return null;}}if(ctx.state!=='running')try{ctx.resume();}catch(e){}return ctx;};window._audioCtx=()=>ctx;window._audioGet=get;
+const SFX=(()=>{let ctx=null;const get=()=>{if(ctx&&ctx.state==='closed')ctx=null;if(!ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;try{ctx=new C();}catch(e){return null;}}if(ctx.state!=='running')try{ctx.resume();}catch(e){}return ctx;};window._audioCtx=()=>ctx;window._audioGet=get;window._audioReset=()=>{try{if(ctx&&ctx.state!=='closed')ctx.close().catch(()=>{});}catch(e){}ctx=null;return get();};
  const muted=()=>typeof profile!=='undefined'&&profile.muted;
  function tone(f,dur,type,vol,t0,f2){const a=get();if(!a||muted())return;const t=a.currentTime+(t0||0),o=a.createOscillator(),v=a.createGain();o.type=type||'sine';o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+dur);
   v.gain.setValueAtTime(0.0001,t);v.gain.exponentialRampToValueAtTime(vol||0.15,t+0.008);v.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(v);v.connect(a.destination);o.start(t);o.stop(t+dur+0.02);}
@@ -142,8 +142,8 @@ function remoteAct(a){const p=g.turn;
 const pending=[];
 function onMsg(d){const S=Online.st;if(d.t==='chat'){chatIn(d);return;}
  if(d.t==='hello'&&S.host&&S.seed!=null&&S.names){Online.start(S.seed,S.names,S.coins,(Online.saved(S.code)||{}).rv||1);} // v24: joiner didn't get start yet -> resend
- else if(d.t==='hello'&&S.host&&S.seed==null){const seed=newSeed();const names=[profile.name,d.name],coins=[profile.coins,+d.coins||100];Online.start(seed,names,coins,2);beginOnline(seed,names,coins,[],2);}
- else if(d.t==='start'&&!S.host&&S.seed==null)beginOnline(d.seed,d.names,d.coins,[],d.rv);
+ else if(d.t==='hello'&&S.host&&S.seed==null){const seed=newSeed();const names=[profile.name,d.name],coins=[profile.coins,+d.coins||100];Online.start(seed,names,coins,2);if(busyElsewhere()){bgStart(seed,names,coins,2,d.name);return;}beginOnline(seed,names,coins,[],2);}
+ else if(d.t==='start'&&!S.host&&S.seed==null){if(busyElsewhere()){bgStart(d.seed,d.names,d.coins,d.rv,(d.names||[])[0]);return;}beginOnline(d.seed,d.names,d.coins,[],d.rv);}
  else if(d.t==='act'){if(d.n<S.applied||!isOn())return;if(!pending.some(x=>x.n===d.n))pending.push(d);pending.sort((x,y)=>x.n-y.n);
   while(pending.length&&pending[0].n<S.applied)pending.shift();
   while(pending.length&&pending[0].n===S.applied){const x=pending.shift();Online.record(x.a);remoteAct(x.a);}
@@ -212,7 +212,7 @@ function renderGames(){const el=$('mygames');if(!el)return;const rows=gameRows()
  if(!rows.length){el.innerHTML='';el.style.display='none';return;}el.style.display='block';
  el.innerHTML='<div class="mgh">🌐 My online games'+(yours?' <b class="mgn">'+yours+'</b>':'')+'</div>'+rows.map(r=>{const cls=['yt','tt','wt','ov'][r.rank];
   return '<div class="mg '+cls+'" data-code="'+r.o.code+'"><div class="mgm"><b>vs '+esc(r.opp)+'</b><span class="mgb">'+r.st+'</span><br><small>Room '+r.o.code+(r.score?' · '+r.score:'')+' · '+ago(r.o.lastAct)+'</small></div>'+
-  (r.rank===3?(r.o.rematch?'<button class="mga" data-a="join">Join rematch</button>':'<button class="mga" data-a="rematch">Rematch</button>')+'<button class="mga x" data-a="rm">✕</button>':'<button class="mga x" data-a="rm">✕</button>')+'</div>';}).join('');}
+  (r.rank===3?(r.o.rematch?'<button class="mga" data-a="join">Join rematch</button>':'<button class="mga" data-a="rematch">Rematch</button>')+'<button class="mga x" data-a="rm">✕</button>':'<button class="mga" data-a="open">Open</button><button class="mga x" data-a="rm">✕</button>')+'</div>';}).join('');}
 function esc(t){return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 document.addEventListener('click',e=>{const row=e.target.closest&&e.target.closest('.mg');if(!row)return;const code=row.dataset.code,a=e.target.dataset&&e.target.dataset.a,o=Online.saved(code);if(!o)return;
  if(a==='rm'){const G=replayGame(o);if(G&&!G.over&&!o.over){if(!confirm('Resign this game vs '+(o.names?o.names[1-o.me]:'friend')+'? It counts as a loss and they win.'))return;resignStored(o);}else if(!G&&!confirm('Remove this waiting room?'))return;
@@ -505,3 +505,7 @@ function plainPop(tot){if(!tot||tot==='+0')return;let L=$('celeb');if(!L){L=docu
 
 // v55: whoever moved first is shown on the left
 (function(){const R=render;render=function(){R.apply(this,arguments);try{const h=$('hud');if(h)h.classList.toggle('flip',!!(g&&g.first===1));}catch(e){}};})();
+
+// v56: a friend joining a waiting room must not replace the game you're playing right now
+function busyElsewhere(){try{return !!(g&&g._live&&!g.over&&g.mode!=='online'&&!$('overlay').classList.contains('show')&&!$('onl').classList.contains('show'));}catch(e){return false;}}
+function bgStart(seed,names,coins,rv,who){try{Online.setGame(seed,names,coins);Online.persist({rv:rv===2?2:1});}catch(e){}renderGames();bannerSay('🌐 '+(who||'Your friend')+' joined room '+Online.st.code+' – open it from Home › My online games');}
