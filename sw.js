@@ -1,4 +1,4 @@
-const V='v50',C='star-tiles-'+V,F=['./','index.html','style.css?v=50','app.js?v=50','logic.js?v=50','missions.js?v=50','mq.js?v=50','online.js?v=50','account.js?v=50','config.js?v=50','native.js?v=50','daily.js?v=50','board.js?v=50','rank.js?v=50','streak.js?v=50','support.html','vendor/supabase.js?v=50','privacy.html','manifest.json','icon-180.png','icon-192.png','icon-512.png'];
+const V='v51',C='star-tiles-'+V,F=['./','index.html','style.css?v=51','app.js?v=51','logic.js?v=51','missions.js?v=51','mq.js?v=51','online.js?v=51','account.js?v=51','config.js?v=51','native.js?v=51','daily.js?v=51','board.js?v=51','rank.js?v=51','streak.js?v=51','cosmetics.js?v=51','support.html','vendor/supabase.js?v=51','privacy.html','manifest.json','icon-180.png','icon-192.png','icon-512.png'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(F)).catch(()=>{}));});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
 // network-first for pages/code; cache only as offline fallback

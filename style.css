@@ -422,3 +422,27 @@ html.native .installHint,html.native .a2hs{display:none!important}
 #loginb{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:1400;background:rgba(3,5,20,.7)}.lgc{text-align:center;color:#eef2ff;max-width:360px;border-radius:20px!important}
 .lgstrip{display:flex;gap:4px;justify-content:center;margin:8px 0}.lgd{flex:1;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:10px;padding:5px 0;font-size:10px;color:var(--dim)}.lgd b{display:block;color:#ffd84a;font-size:13px}.lgd.done{opacity:.5}.lgd.now{border-color:#ffd84a;box-shadow:0 0 12px rgba(255,216,74,.5);color:#fff}
 .lgamt{font-size:34px;font-weight:900;color:#ffd84a;margin:6px 0}.wsline{color:#ff9a3a;font-weight:900}.wsb{text-align:center;color:#ff9a3a;font-size:13px;margin:4px 0;font-weight:700}
+
+/* v51 cosmetics */
+.cos-open{background:linear-gradient(135deg,#ff4fa3,#8a3cff)!important}.cos-open small{display:block;font-size:11px;opacity:.85;font-weight:600}
+#cos{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:center;z-index:1300;background:rgba(3,5,20,.6)}#cos.show{display:flex}
+#cosList{overflow-y:auto;max-height:64vh}#cosList h3{color:#cfd8ff;font-size:13px;margin:10px 0 6px}#cosCoins{color:#ffd84a;font-weight:900;flex:1;text-align:center}
+.cosg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.cosi{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:12px;padding:8px 4px;color:#eef2ff;display:flex;flex-direction:column;align-items:center;gap:3px}
+.cosi.on{border-color:#ffd84a;box-shadow:0 0 12px rgba(255,216,74,.4)}.cosi b{font-size:12px}.cosi small{font-size:10px;color:var(--dim)}
+.cprev{display:flex;gap:3px;height:22px;align-items:center;padding:3px 5px;border-radius:7px;background:rgba(255,255,255,.06)}.cprev i{width:16px;height:16px;border-radius:5px;background:linear-gradient(135deg,#ff6b8a,#e0325a)}.cprev i:nth-child(2){background:linear-gradient(135deg,#ffe066,#f2b705)}.cprev i:nth-child(3){background:linear-gradient(135deg,#5ad1ff,#2a7bf5)}
+.tile-neon i{box-shadow:0 0 8px currentColor,0 0 0 2px #fff8;color:#f0f}.tile-pastel i{filter:saturate(.5) brightness(1.2)}.tile-glass i{opacity:.65;box-shadow:inset 0 0 0 2px #fff9}.tile-retro i{border-radius:0;filter:contrast(1.3)}
+.board-aurora{background:linear-gradient(135deg,#0d3b3a,#1b6b4f)}.board-nebula{background:linear-gradient(135deg,#3a1050,#7a1f6b)}.board-ocean{background:linear-gradient(135deg,#031a3d,#0a4d7a)}.board-sunset{background:linear-gradient(135deg,#5a1f2e,#c4572a)}
+.star-pulse i,.star-rainbow i,.star-comet i{background:radial-gradient(circle,#fff6b0,#ffc400)!important}.star-rainbow i{animation:sfrb 2s linear infinite}.star-pulse i{animation:sfpu 1s ease-in-out infinite}.star-comet i{box-shadow:-6px 0 8px #ffd84a99}
+/* skins applied to real tiles (stars keep their own look) */
+body.sk-neon .tile:not(.star){box-shadow:0 0 9px currentColor,inset 0 0 0 2px rgba(255,255,255,.55)!important;filter:saturate(1.5) brightness(1.1)}
+body.sk-pastel .tile:not(.star){filter:saturate(.5) brightness(1.18)}
+body.sk-glass .tile:not(.star){opacity:.78;box-shadow:inset 0 0 0 2px rgba(255,255,255,.6),inset 0 6px 10px rgba(255,255,255,.35)!important}
+body.sk-retro .tile:not(.star){border-radius:2px!important;filter:contrast(1.35) saturate(1.2);image-rendering:pixelated}
+body.th-aurora #board{background:linear-gradient(135deg,rgba(13,90,80,.55),rgba(40,140,90,.35))!important;box-shadow:0 0 30px rgba(60,255,180,.25)!important}
+body.th-nebula #board{background:linear-gradient(135deg,rgba(110,20,140,.5),rgba(200,40,150,.3))!important;box-shadow:0 0 30px rgba(255,80,200,.25)!important}
+body.th-ocean #board{background:linear-gradient(180deg,rgba(5,40,100,.6),rgba(10,90,140,.4))!important;box-shadow:0 0 30px rgba(40,160,255,.3)!important}
+body.th-sunset #board{background:linear-gradient(180deg,rgba(150,40,70,.5),rgba(230,110,40,.35))!important;box-shadow:0 0 30px rgba(255,140,60,.3)!important}
+body.sf-pulse .tile.star{animation:sfpu 1.2s ease-in-out infinite}
+body.sf-rainbow .tile.star{animation:sfrb 2.4s linear infinite}
+body.sf-comet .tile.star{filter:drop-shadow(-5px 2px 5px rgba(255,216,74,.85)) drop-shadow(-9px 4px 6px rgba(255,140,40,.45))}
+@keyframes sfpu{50%{transform:scale(1.1);filter:brightness(1.3)}}@keyframes sfrb{to{filter:hue-rotate(360deg) saturate(1.6)}}
