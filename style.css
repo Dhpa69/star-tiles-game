@@ -503,3 +503,11 @@ body.sf-comet .tile.star{filter:drop-shadow(-5px 2px 5px rgba(255,216,74,.85)) d
 body.homeopen #celeb,body.homeopen .flt,body.homeopen .fxh,body.homeopen #banner,body.homeopen #tbar{visibility:hidden!important}
 /* v57: frozen while an ad is on screen */
 body.adpause *,body.adpause *::before,body.adpause *::after{animation-play-state:paused!important;transition:none!important}
+/* v58 share sheet */
+#shareP{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center;z-index:9000}
+#shareP.show{display:flex}
+#shareP .shc{background:#151a33;color:#fff;border-radius:18px 18px 0 0;padding:16px;width:100%;max-width:480px;max-height:85vh;overflow:auto}
+#shareP h3{margin:0 0 8px}#shareP .shtxt{white-space:pre-wrap;word-break:break-all;background:#0b0f22;padding:10px;border-radius:10px;font-size:13px}
+#shareP .shrow{display:flex;flex-direction:column;gap:8px}#shareP .shrow .btn{text-align:center;text-decoration:none;display:block}
+.shnote{display:block;opacity:.8;font-size:12px;margin:6px 0;text-align:center}
+.shx{background:#000!important;color:#fff!important}.shfb{background:#1877f2!important;color:#fff!important}.shwa{background:#25d366!important;color:#04220f!important}
