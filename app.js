@@ -498,3 +498,7 @@ function plainPop(tot){if(!tot||tot==='+0')return;let L=$('celeb');if(!L){L=docu
 
 // v43: shrink score digits so the header never overlaps
 (function(){const R=render;render=function(){R.apply(this,arguments);for(const id of ['s0','s1']){const e=$(id);if(!e)continue;const n=e.textContent.length;e.dataset.len=n>=9?'xl':n>=7?'l':n>=6?'m':'s';e.style.fontSize='';let fs=parseFloat(getComputedStyle(e).fontSize),k=0;while(e.scrollWidth>e.clientWidth+1&&fs>10&&k++<20){fs-=1;e.style.fontSize=fs+'px';}}};})();
+
+// v45: THIS MOVE number auto-fits on every update (never clipped)
+(function(){const R=render;function fitPP(){const e=$('potprev');if(!e)return;e.style.removeProperty('font-size');let fs=parseFloat(getComputedStyle(e).fontSize),k=0;while(e.scrollWidth>e.clientWidth+0.5&&fs>8&&k++<30){fs-=0.5;e.style.setProperty('font-size',fs+'px','important');}}
+ render=function(){R.apply(this,arguments);fitPP();};window.fitPP=fitPP;})();

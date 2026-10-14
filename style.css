@@ -386,3 +386,17 @@ footer{background:rgba(8,10,36,.75)!important;border-top:1px solid var(--line);b
 .apple{display:flex;align-items:center;justify-content:center;gap:8px;background:#000;color:#fff;border:1px solid #fff4;border-radius:12px;font:600 17px -apple-system,system-ui,sans-serif;height:48px}
 .apple:disabled{opacity:.5}.acard .danger{background:rgba(255,59,92,.15)!important;color:#ff8da1!important;border:1px solid rgba(255,59,92,.5)!important}
 .acpriv a{color:#9fb0ff}
+
+/* v45 */
+#potprev{display:block!important;width:100%;box-sizing:border-box;text-align:center;text-overflow:clip!important;padding:0 2px!important}
+
+/* v45 shop / safety */
+#shop{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:center;z-index:1300;background:rgba(3,5,20,.6)}#shop.show{display:flex}
+#shopList{display:grid;grid-template-columns:1fr 1fr;gap:8px;overflow-y:auto}
+.shopi{position:relative;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:14px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:4px;color:#eef2ff;text-align:center}
+.shopi.best{border-color:#ffd84a;box-shadow:0 0 14px rgba(255,216,74,.4)}.shopi em{position:absolute;top:-8px;font-style:normal;font-size:10px;font-weight:900;background:#ffd84a;color:#1a0f00;border-radius:8px;padding:1px 6px}
+.shopi small{color:var(--dim);min-height:14px}.sbuy{width:100%;background:linear-gradient(135deg,#ffb020,#ff7a1a)!important;color:#1a0f00!important;font-weight:900}
+#shopMsg{color:#ffd84a;text-align:center;min-height:16px}#shopCoins{color:#ffd84a;font-weight:900;text-align:center;flex:1}
+.getapp{grid-column:1/-1;color:#eef2ff;text-align:center;line-height:1.5}.chtool{width:34px;height:34px;padding:0;margin-right:4px}
+.supp{display:block;text-align:center;text-decoration:none}
+html.native .installHint,html.native .a2hs{display:none!important}

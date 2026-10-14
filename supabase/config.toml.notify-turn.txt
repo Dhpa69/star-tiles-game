@@ -1,0 +1,3 @@
+# add to supabase/config.toml so the function accepts the public anon key (no user login needed):
+[functions.notify-turn]
+verify_jwt = false
