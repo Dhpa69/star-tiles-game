@@ -525,3 +525,5 @@ body.adpause *,body.adpause *::before,body.adpause *::after{animation-play-state
 #teamP .tnames{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}#teamP .tnames b{grid-column:1/-1;font-size:12px}
 #teamP input{padding:8px;border-radius:8px;border:1px solid #445;background:#0b0f22;color:#fff;font-size:16px;width:100%;box-sizing:border-box}
 #teamP .trow{display:flex;gap:6px}#teamP .trow .btn{flex:1}
+
+#tchips .tround{align-self:center;font-weight:700;color:#ffd54a;white-space:nowrap;font-size:12px}

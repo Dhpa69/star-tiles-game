@@ -2,7 +2,7 @@ const L=Logic,$=id=>document.getElementById(id);let tally=null,g,pieces=[],sel=n
 const toast=document.createElement('div');toast.id='toast';document.body.appendChild(toast);
 function say(t){toast.textContent=t;toast.style.opacity=1;clearTimeout(say.t);say.t=setTimeout(()=>toast.style.opacity=0,1300);}
 // ---- Web Audio synth SFX (no files); unlocked on first tap for iOS ----
-const SFX=(()=>{let ctx=null;const get=()=>{if(ctx&&ctx.state==='closed')ctx=null;if(!ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;try{ctx=new C();}catch(e){return null;}}if(ctx.state!=='running')try{ctx.resume();}catch(e){}return ctx;};window._audioCtx=()=>ctx;window._audioGet=get;window._audioReset=()=>{try{if(ctx&&ctx.state!=='closed')ctx.close().catch(()=>{});}catch(e){}ctx=null;return get();};
+const SFX=(()=>{let ctx=null;const get=()=>{if(ctx&&ctx.state==='closed')ctx=null;if(!ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;try{ctx=new C();}catch(e){return null;}}if(ctx.state!=='running')try{ctx.resume();}catch(e){}return ctx;};window._audioCtx=()=>ctx;window._audioGet=get;window._sfxGet=get;window._audioReset=()=>{try{if(ctx&&ctx.state!=='closed')ctx.close().catch(()=>{});}catch(e){}ctx=null;return get();};
  const muted=()=>typeof profile!=='undefined'&&profile.muted;
  function tone(f,dur,type,vol,t0,f2){const a=get();if(!a||muted())return;const t=a.currentTime+(t0||0),o=a.createOscillator(),v=a.createGain();o.type=type||'sine';o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+dur);
   v.gain.setValueAtTime(0.0001,t);v.gain.exponentialRampToValueAtTime(vol||0.15,t+0.008);v.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(v);v.connect(a.destination);o.start(t);o.stop(t+dur+0.02);}
@@ -32,6 +32,8 @@ saveProfile();
 const DL={easy:'EASY',medium:'MEDIUM',hard:'HARD',expert:'EXPERT',master:'MASTER'};
 const isOn=()=>g&&g.mode==='online',meIdx=()=>isOn()?(g.team?Online.st.me>>1:Online.st.me):0;
 const BN=()=>g&&g.board?g.board.length:8;
+// v60: board-size-dependent helpers always use the CURRENT game's size (other code can build 8x8 games in between)
+{const _m=L.mult,_bc=L.blastCells;L.mult=(r,c)=>{if(g&&g.board)L.setN(g.board);return _m(r,c);};L.blastCells=(t,r,c)=>{if(g&&g.board)L.setN(g.board);return _bc(t,r,c);};}
 // v59 team: is the player to move me (online seat / AI seats)?
 const mySeatTurn=()=>!g.team||!isOn()||g.team.sub[g.turn]===(Online.st.me&1);
 const aiSeat=()=>g.team?!!g.team.ai[g.turn][g.team.sub[g.turn]]:g.turn===1;
@@ -62,7 +64,7 @@ function render(){setTimeout(fit,0);clearTimeout(render.sv);render.sv=setTimeout
   rk.appendChild(set);}
  $('s0').textContent=g.scores[0].toLocaleString();$('s1').textContent=g.scores[1].toLocaleString();if(tally){$('s'+tally.who).textContent=tally.base.toLocaleString();}if(g.pot!==undefined)delete g.pot; // old saves
  $('n0').textContent=NAMES()[0];$('n1').textContent=NAMES()[1];$('n0').className=g.turn===0?'on':'';$('n1').className=g.turn===1?'on':'';
- const mv=Math.min(g.moves[g.turn]+1,10),fin=L.isFinal(g)&&!g.over;$('banner').textContent=g.over?'GAME OVER':(fin?'FINAL MOVE!':'MOVE '+mv+' / 10');$('banner').className=fin?'final':'';setTimeout(updReplay,0);
+ const mv=Math.min(g.moves[g.turn]+1,10),fin=L.isFinal(g)&&!g.over;$('banner').textContent=g.over?'GAME OVER':(g.team?(fin?'FINAL MOVE · ':'')+'ROUND '+Math.min(10,Math.floor((g.moves[0]+g.moves[1])/4)+1)+' / 10':(fin?'FINAL MOVE!':'MOVE '+mv+' / 10'));$('banner').className=fin?'final':'';setTimeout(updReplay,0);
  const fr=g.power[g.turn];const bf=bx();$('badge').textContent=bf>1?'x'+bf:(fr>0?fr:'50🪙');$('power').className='btn'+(boost?' on':'');const cw=g.mode==='pvp'?g.turn:meIdx();$('coinN').textContent=g.coins[cw];
  $('swapc').textContent=g.swaps[g.turn]>0?'FREE':'50🪙';if(!isOn()&&(!g.team||g.team.sub[0]===0)&&profile.coins!==g.coins[meIdx()]){profile.coins=g.coins[meIdx()];saveProfile();}
  const h=human();$('play').disabled=!h;$('recall').disabled=!h||!pieces.length;$('swap').disabled=!h||firstFree()==null||!L.canSwap(g);$('power').disabled=!h||(!boost&&!L.canPower(g)&&L.charges(g)<1);}
@@ -350,10 +352,10 @@ function firstBanner(){if(!g||g.over)return;const t=g.turn;let m;
 // then snap to the nearest valid spot within 1 cell. Fixes drops onto corner x3 squares landing the anchor off-board.
 function snapAt(s,px,py){const bd=$('board').getBoundingClientRect(),cw=bd.width/BN(),ch=bd.height/BN();
  const fx=(px-bd.left)/cw,fy=(py-bd.top)/ch;if(fx<-0.75||fy<-0.75||fx>BN()+.75||fy>BN()+.75)return null;
- const vert=L.normO(g.orient[g.turn][s])%2===1;let c=Math.max(0,Math.min(7,Math.floor(fx))),r=Math.max(0,Math.min(7,Math.floor(fy)));
- if(vert)r=Math.min(r,5);else c=Math.min(c,5);
+ const vert=L.normO(g.orient[g.turn][s])%2===1;const n=BN();let c=Math.max(0,Math.min(n-1,Math.floor(fx))),r=Math.max(0,Math.min(n-1,Math.floor(fy)));
+ if(vert)r=Math.min(r,n-3);else c=Math.min(c,n-3); // v60: was hard-coded 7/5 (8x8)
  const pl=placed(),cand=[[0,0],[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[-1,1],[1,-1],[1,1]];
- for(const [dr,dc] of cand){const rr=r+dr,cc=c+dc;if(rr<0||cc<0||rr>7||cc>7)continue;const t=tilesAt(s,rr,cc);if(L.validPiece(g.board,pl,t))return {tiles:t,ok:true,r:rr,c:cc};}
+ for(const [dr,dc] of cand){const rr=r+dr,cc=c+dc;if(rr<0||cc<0||rr>=BN()||cc>=BN())continue;const t=tilesAt(s,rr,cc);if(L.validPiece(g.board,pl,t))return {tiles:t,ok:true,r:rr,c:cc};}
  const t=tilesAt(s,r,c);return {tiles:t.filter(q=>q.r<BN()&&q.c<BN()),ok:false,r,c};}
 
 // ---- v37: daily missions ----

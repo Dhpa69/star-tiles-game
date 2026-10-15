@@ -204,6 +204,6 @@ function aiPlan(g,level){useRules(g);level=level||'medium';if(level==='expert')r
  const m=aiMove(g,opt);return {blast:bl,pl:m.pl,boost:m.boost};}
 // v23: resign = player p quits; the other player wins (gets the win coins)
 function resign(g,p){if(g.over)return false;g.over=true;g.resigned=p;g.winner=1-p;g.coins[1-p]+=WIN_COINS;if(g.team)g.team.st[1-p][1-g.team.sub[1-p]].coins+=WIN_COINS;return true;}
-const api={teamInit,seat,teamCoins,totalMoves,get N(){return N;},useRules,evaluate,single,resign,norm,capB,charges,spendCharge,dbl,expertMove,expertPlan,masterMove,masterPlan,pairsValue,previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
+const api={setN,teamInit,seat,teamCoins,totalMoves,get N(){return N;},useRules,evaluate,single,resign,norm,capB,charges,spendCharge,dbl,expertMove,expertPlan,masterMove,masterPlan,pairsValue,previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
 if(typeof module!=='undefined')module.exports=api;else root.Logic=api;
 })(this);

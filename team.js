@@ -59,7 +59,7 @@ function chips(){let el=$('tchips');const on=g&&g.team;if(!on){if(el)el.style.di
  if(g.mode!=='pvp'){const on=isOn(),c=on?L.teamCoins(g,S().me>>1,S().me&1):L.teamCoins(g,0,0),cn=$('coinN');if(cn)cn.textContent=c;}
  const side=s=>'<div class="tcs t'+AB(s)+'">'+[0,1].map(k=>{const act=!g.over&&g.turn===s&&g.team.sub[s]===k,mine=isOn()?S().me===s*2+k:g.mode==='ai'&&s===0&&k===0;
   return '<span class="tchip'+(act?' act':'')+(mine?' me':'')+'">'+(g.team.ai[s][k]?'🤖 ':'')+esc(g.team.n[s][k]||'P')+' <b>'+g.team.pm[s][k]+'/'+L.MOVES+'</b></span>';}).join('')+'</div>';
- const L0=g.first===1?1:0;el.innerHTML=side(L0)+side(1-L0);}
+ const L0=g.first===1?1:0;const rd=Math.min(10,Math.floor((g.moves[0]+g.moves[1])/4)+1);el.innerHTML=side(L0)+'<span class="tround">'+(g.over?'Final':'Round '+rd+'/10')+'</span>'+side(1-L0);}
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 // ---------- home panel ----------
 let P=null;function close(){if(P)P.classList.remove('show');}

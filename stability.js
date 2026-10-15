@@ -1,7 +1,7 @@
 // v54: freeze protection – AI in a Web Worker, input-lock watchdog, error recovery
 (function(){
 let W=null,wid=0;const cbs={};
-function worker(){if(W!==null)return W;try{W=new Worker('ai-worker.js?v=59');W.onmessage=e=>{const c=cbs[e.data.id];delete cbs[e.data.id];if(c)c(e.data);};W.onerror=()=>{W=false;Object.keys(cbs).forEach(k=>{const c=cbs[k];delete cbs[k];c({ok:false});});};}catch(e){W=false;}return W;}
+function worker(){if(W!==null)return W;try{W=new Worker('ai-worker.js?v=60');W.onmessage=e=>{const c=cbs[e.data.id];delete cbs[e.data.id];if(c)c(e.data);};W.onerror=()=>{W=false;Object.keys(cbs).forEach(k=>{const c=cbs[k];delete cbs[k];c({ok:false});});};}catch(e){W=false;}return W;}
 function snap(G){const {rng,...rest}=G;return JSON.parse(JSON.stringify(rest));}
 // cb(plan) gets a plan whose blast (if any) is already applied to G, like L.aiPlan
 window.planAI=function(G,level,cb){window.aiThinking=true;const done=m=>{window.aiThinking=false;cb(m);};
@@ -36,15 +36,31 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden){since=0;w
 
 // v56: sound after backgrounding (iOS) – resume, or rebuild the AudioContext if resume fails / it was closed
 let waking=false;
-function wakeAudio(why){try{if(typeof profile!=='undefined'&&profile.muted)return;const c=window._audioCtx&&window._audioCtx();if(!c)return;
- if(c.state==='closed'){window._audioReset&&window._audioReset();return;}
- if(c.state==='running'||waking)return;waking=true;
- const rebuild=()=>{waking=false;const n=window._audioReset&&window._audioReset();if(n&&n.state!=='running')n.resume().catch(()=>{});};
- let p;try{p=c.resume();}catch(e){return rebuild();}
- Promise.resolve(p).then(()=>setTimeout(()=>{waking=false;if(c.state!=='running'&&document.visibilityState==='visible')rebuild();},350)).catch(rebuild);
- try{if(typeof unlock==='function')unlock();}catch(e){}}catch(e){waking=false;}}
+// v60: robust audio. Cause of random silence on iOS: the old code, on a touchSTART (where iOS does not allow
+// audio to unlock yet), waited 350ms and then threw the context away and built a new one from a timer. That new
+// context was born "suspended" outside a tap, and it replaced the context the same tap's touchEND had just
+// unlocked -> silence until some later lucky tap. iOS also puts the context into "interrupted"/"suspended" mid-play
+// (notifications, Siri, calls, other audio) without any visibility change, and nothing resumed it.
+// Now: resume on every gesture (never rebuild from a timer), rebuild only if closed or if it stayed dead across
+// 2 real taps, watch statechange and retry, and visibility/pageshow/focus/app-resume all resume.
+let deadTaps=0;const hooked=new WeakSet();
+function hook(c){if(!c||hooked.has(c))return;hooked.add(c);try{c.addEventListener('statechange',()=>{AST.last=c.state;AST.log.push(c.state);if(AST.log.length>30)AST.log.shift();
+  if(c.state!=='running'&&c.state!=='closed'&&!window.adPaused&&document.visibilityState==='visible')[300,1200,3000].forEach(ms=>setTimeout(()=>wakeAudio('statechange'),ms));});}catch(e){}}
+const AST={last:null,log:[],rebuilds:0};window._audioState=AST;
+function wakeAudio(why){try{if(typeof profile!=='undefined'&&profile.muted)return;if(window.adPaused&&why!=='ad')return;
+ const gesture=/^(touchend|pointerup|click|keydown|pointerdown|touchstart)$/.test(why);
+ let c=window._audioCtx&&window._audioCtx();
+ if(!c||c.state==='closed'){if(!gesture&&c)return;c=window._audioGet&&window._audioGet();hook(c);if(!c)return;}
+ hook(c);
+ if(c.state==='running'){deadTaps=0;}
+ else{try{const p=c.resume();if(p&&p.catch)p.catch(()=>{});}catch(e){}
+  if(why==='touchend'||why==='click'||why==='pointerup'||why==='keydown'){ // real unlock gestures on iOS
+   try{const s=c.createBufferSource();s.buffer=c.createBuffer(1,1,22050);s.connect(c.destination);s.start(0);}catch(e){}
+   if(++deadTaps>=3&&c.state!=='running'){deadTaps=0;AST.rebuilds++;c=window._audioReset&&window._audioReset();hook(c);try{c&&c.resume().catch(()=>{});const s=c.createBufferSource();s.buffer=c.createBuffer(1,1,22050);s.connect(c.destination);s.start(0);}catch(e){}}}}
+ if(gesture){try{window._unlockAudio&&window._unlockAudio();}catch(e){}}}catch(e){}}
 window.wakeAudio=wakeAudio;
-['touchstart','pointerdown','touchend','keydown'].forEach(t=>addEventListener(t,()=>wakeAudio(t),{capture:true,passive:true}));
+['touchstart','pointerdown','touchend','pointerup','click','keydown'].forEach(t=>addEventListener(t,()=>wakeAudio(t),{capture:true,passive:true}));
+setInterval(()=>{if(document.visibilityState==='visible')wakeAudio('tick');},4000); // safety: try to resume a context iOS silently suspended
 addEventListener('pageshow',()=>wakeAudio('pageshow'));addEventListener('focus',()=>wakeAudio('focus'));
 try{const A=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.App;if(A&&A.addListener){A.addListener('resume',()=>wakeAudio('resume'));A.addListener('appStateChange',s=>{if(s&&s.isActive)wakeAudio('appState');});}}catch(e){}
 document.addEventListener('resume',()=>wakeAudio('cordova-resume'),false);
