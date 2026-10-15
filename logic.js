@@ -1,17 +1,19 @@
 (function(root){
 const COLORS=['yellow','green','blue','pink','red','orange'];
-const N=8, MOVES=10, RACK=9, START_COINS=100, WIN_COINS=10, EXTRA_COST=50; // economy: 1 free swap + 2 free power-ups per game, extras cost 50 coins, +10 coins per win only
-function mult(r,c){ if((r==0||r==N-1)&&(c==0||c==N-1)) return 3; if((r==2||r==5)&&(c==2||c==5)) return 2; return 1;}
+let N=8;const MOVES=10, RACK=9, START_COINS=100, WIN_COINS=10, EXTRA_COST=50; // economy: 1 free swap + 2 free power-ups per game, extras cost 50 coins, +10 coins per win only
+function mult(r,c){ if((r==0||r==N-1)&&(c==0||c==N-1)) return 3; const a=2,z=N-3; if((r==a||r==z)&&(c==a||c==z)) return 2;
+ if(N>=10&&((r==0||r==N-1)&&(c==4||c==5)||(c==0||c==N-1)&&(r==4||r==5))) return 2; return 1;} // v59: 10x10 team board adds x2 edge-midpoints
+function setN(b){if(b&&b.length)N=b.length;}
 function rnd(rng){return rng()<0.08?'star':COLORS[Math.floor(rng()*COLORS.length)];}
 function rndColor(rng){return COLORS[Math.floor(rng()*COLORS.length)];}
 function piece(rng){let st=false;return [0,1,2].map(()=>{let t=rnd(rng);if(t==='star'){if(st)t=rndColor(rng);st=true;}return t;});} // max 1 star per piece
 function deal(rng){return [].concat(piece(rng),piece(rng),piece(rng));}
-function newGame(mode,rng,first){rng=rng||Math.random;
+function newGame(mode,rng,first,size){rng=rng||Math.random;N=size||8;
  const b=[];for(let r=0;r<N;r++){b.push([]);for(let c=0;c<N;c++)b[r].push(null);}
- [[3,3],[3,4],[4,3],[4,4]].forEach(([r,c])=>b[r][c]={color:rndColor(rng)});
+ {const m=N/2;[[m-1,m-1],[m-1,m],[m,m-1],[m,m]].forEach(([r,c])=>b[r][c]={color:rndColor(rng)});}
  return {orient:[[0,0,0],[0,0,0]],board:b,mode,rv:2,turn:first===1?1:0,first:first===1?1:0,moves:[0,0],scores:[0,0],racks:[deal(rng),deal(rng)],power:[2,2],swaps:[1,1],coins:[START_COINS,mode==='ai'?0:START_COINS],over:false,rng};}
 const inb=(r,c)=>r>=0&&c>=0&&r<N&&c<N;
-function canPlace(b,r,c){ if(!inb(r,c)||b[r][c])return false;
+function canPlace(b,r,c){setN(b); if(!inb(r,c)||b[r][c])return false;
  if(b.every(row=>row.every(t=>!t)))return true; // empty board: anywhere
  return [[1,0],[-1,0],[0,1],[0,-1]].some(([dr,dc])=>inb(r+dr,c+dc)&&b[r+dr][c+dc]);}
 // straight-line rule: all tiles placed this move share one row or one column
@@ -27,12 +29,12 @@ function rotateO(o){return (normO(o)+1)%4;}
 function pieceTiles(rack,s,o,r,c){o=normO(o);const vert=o%2===1,rev=o>=2;
  return [0,1,2].map(j=>{const k=rev?2-j:j;return {r:vert?r+j:r,c:vert?c:c+j,color:rack[3*s+k],slot:3*s+k};});}
 // only rule: the straight 3-tile piece fits inside the board on 3 empty cells (anywhere, no touching / collinear rules)
-function validPiece(b,placed,tiles){const nb=withPlaced(b,placed);return tiles.every(t=>inb(t.r,t.c)&&!nb[t.r][t.c]&&t.color);}
+function validPiece(b,placed,tiles){setN(b);const nb=withPlaced(b,placed);return tiles.every(t=>inb(t.r,t.c)&&!nb[t.r][t.c]&&t.color);}
 // uncommitted piece helpers: move / rotate in place against the other pieces placed this move
 function movePiece(b,rack,others,s,o,r,c){const t=pieceTiles(rack,s,o,r,c);return validPiece(b,others,t)?t:null;}
 // rotate with auto-fit: try next rotation pivoting on the middle tile; if blocked, every position for that rotation,
 // nearest to the original piece first (pivot distance, then overlap with original cells); then the following rotations.
-function rotateInPlace(b,rack,others,s,o,r,c){const old=pieceTiles(rack,s,o,r,c),mid=old[1],oldSet=new Set(old.map(t=>t.r*N+t.c));
+function rotateInPlace(b,rack,others,s,o,r,c){setN(b);const old=pieceTiles(rack,s,o,r,c),mid=old[1],oldSet=new Set(old.map(t=>t.r*N+t.c));
  for(let k=1;k<=3;k++){const no=(normO(o)+k)%4,cands=[];
   for(let y=0;y<N;y++)for(let x=0;x<N;x++){const t=pieceTiles(rack,s,no,y,x);if(!validPiece(b,others,t))continue;
    const d=Math.abs(t[1].r-mid.r)+Math.abs(t[1].c-mid.c),ov=t.filter(q=>oldSet.has(q.r*N+q.c)).length;const ax=(no%2===1)?(t[1].c!==mid.c?1:0):(t[1].r!==mid.r?1:0);cands.push({d,ov,ax,y,x,t});}
@@ -43,8 +45,8 @@ function group(b,r,c){const col=b[r][c].color,seen=new Set(),st=[[r,c]],out=[];
   if(!inb(y,x))continue;const t=b[y][x];if(!t)continue;
   if(t.star){out.push([y,x]);st.push([y+1,x],[y-1,x],[y,x+1],[y,x-1]);continue;} // stars are wild and chain
   if(t.color!==col)continue;out.push([y,x]);st.push([y+1,x],[y-1,x],[y,x+1],[y,x-1]);}return out;}
-let RV=2;function useRules(g){RV=g&&g.rv===2?2:1;}
-function evaluate(b,pl,boost){const nb=b.map(row=>row.map(t=>t&&{...t}));let score=0;const seeds=[];
+let RV=2;function useRules(g){RV=g&&g.rv===2?2:1;if(g)setN(g.board);}
+function evaluate(b,pl,boost){setN(b);const nb=b.map(row=>row.map(t=>t&&{...t}));let score=0;const seeds=[];
  for(const p of pl){nb[p.r][p.c]=p.color==='star'?{star:true,fresh:true,mult:mult(p.r,p.c)}:{color:p.color};}
  // v28: every colored tile on the board is a seed, so ANY connected group of 3+ (stars wild, chaining through stars)
  // scores, even when the new tile only touches it through other stars. Star-only groups (no color) never score.
@@ -76,11 +78,22 @@ function canSwap(g){return g.swaps[g.turn]>0||g.coins[g.turn]>=EXTRA_COST;}
 function swap(g,s){if(!canSwap(g))return false;if(g.swaps[g.turn]>0)g.swaps[g.turn]--;else g.coins[g.turn]-=EXTRA_COST;
  if(s===undefined||s===null){g.racks[g.turn]=deal(g.rng);g.orient[g.turn]=[0,0,0];endTurn(g);return true;}
  const p=piece(g.rng);for(let i=0;i<3;i++)g.racks[g.turn][s*3+i]=p[i];g.orient[g.turn][s]=0;return true;}
-function endTurn(g){g.moves[g.turn]++;g.usedPower=false;
- if(g.moves[0]>=MOVES&&g.moves[1]>=MOVES){g.over=true;const w=g.scores[0]===g.scores[1]?-1:(g.scores[0]>g.scores[1]?0:1);g.winner=w;
-  delete g.pot;if(w>=0&&!g.solo)g.coins[w]+=WIN_COINS;return;}
+// v59 team 2v2: 2 sides (0=Team A,1=Team B) x 2 players. Each side slot holds its CURRENT player's rack/power/swaps/coins;
+// the waiting teammate is stashed in g.team.st. Order: first side P1, other side P1, first side P2, other side P2.
+function stash(g,s,k){g.team.st[s][k]={rack:g.racks[s],orient:g.orient[s],power:g.power[s],swaps:g.swaps[s],coins:g.coins[s]};}
+function load(g,s,k){const p=g.team.st[s][k];g.racks[s]=p.rack;g.orient[s]=p.orient;g.power[s]=p.power;g.swaps[s]=p.swaps;g.coins[s]=p.coins;g.team.st[s][k]=null;}
+function teamInit(g,names,ai,coins){const rng=g.rng||Math.random;coins=coins||[[g.coins[0],g.coins[0]],[g.coins[1],g.coins[1]]];
+ g.team={n:names,ai:ai||[[0,0],[0,0]],sub:[0,0],pm:[[0,0],[0,0]],st:[[null,null],[null,null]]};
+ for(const s of [0,1]){g.coins[s]=coins[s][0];g.team.st[s][1]={rack:deal(rng),orient:[0,0,0],power:2,swaps:1,coins:coins[s][1]};}return g;}
+function seat(g,s,k){if(!g.team||g.team.sub[s]===k)return;stash(g,s,g.team.sub[s]);load(g,s,k);g.team.sub[s]=k;} // make player k of side s the loaded one
+function teamCoins(g,s,k){if(!g.team)return g.coins[s];return g.team.sub[s]===k?g.coins[s]:g.team.st[s][k].coins;}
+function totalMoves(g){return g.team?MOVES*2:MOVES;}
+function endTurn(g){g.moves[g.turn]++;if(g.team)g.team.pm[g.turn][g.team.sub[g.turn]]++;g.usedPower=false;const M=totalMoves(g);
+ if(g.moves[0]>=M&&g.moves[1]>=M){g.over=true;const w=g.scores[0]===g.scores[1]?-1:(g.scores[0]>g.scores[1]?0:1);g.winner=w;
+  delete g.pot;if(w>=0&&!g.solo){g.coins[w]+=WIN_COINS;if(g.team)g.team.st[w][1-g.team.sub[w]].coins+=WIN_COINS;}return;}
+ if(g.team){const s=g.turn,k=g.team.sub[s];stash(g,s,k);load(g,s,1-k);g.team.sub[s]=1-k;}
  if(!g.solo)g.turn=1-g.turn;refill(g);}
-function isFinal(g){return g.moves[g.turn]===MOVES-1;}
+function isFinal(g){return g.team?g.team.pm[g.turn][g.team.sub[g.turn]]===MOVES-1:g.moves[g.turn]===MOVES-1;}
 // bot search over whole pieces (all 4 orientations); beam = how many first pieces to extend; deadline caps time
 function aiMove(g,opt){useRules(g);opt=opt||{};const beam=opt.beam||40,maxP=opt.maxPieces||3,t0=Date.now(),dl=opt.ms||600;
  const b=g.board,rack=g.racks[g.turn];let best={score:0,val:0,pl:[]};
@@ -107,10 +120,10 @@ function blastCells(type,r,c){const out=[];
  else if(type==='cross'){for(let i=0;i<N;i++){out.push([r,i]);if(i!==r)out.push([i,c]);}}
  return out;}
 // clears EVERY committed tile in the area, stars included (the one way stars are removed); scores nothing
-function blast(g,type,r,c){if(!canPower(g))return null;const pops=[];
+function blast(g,type,r,c){setN(g.board);if(!canPower(g))return null;const pops=[];
  for(const [y,x] of blastCells(type,r,c)){const t=g.board[y][x];if(t){pops.push({r:y,c:x,color:t.star?'star':t.color});g.board[y][x]=null;}}
  usePower(g);return {pops,cells:blastCells(type,r,c)};}
-function countFits(g){const rack=g.racks[g.turn];let n=0;for(let s=0;s<3;s++){if(!rack[3*s])continue;for(const o of [0,1])for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(validPiece(g.board,[],pieceTiles(rack,s,o,r,c)))n++;}return n;}
+function countFits(g){setN(g.board);const rack=g.racks[g.turn];let n=0;for(let s=0;s<3;s++){if(!rack[3*s])continue;for(const o of [0,1])for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(validPiece(g.board,[],pieceTiles(rack,s,o,r,c)))n++;}return n;}
 // bot turn: blast when crowded, then greedy move (may double if no blast used)
 // ---- EXPERT: beam search over piece sequences with setup lookahead, time-budgeted ----
 function pairsValue(b){let v=0;for(let r=0;r<N;r++)for(let c=0;c<N;c++){const t=b[r][c];if(!t||t.star)continue;
@@ -136,7 +149,7 @@ function expertMove(g,ms){useRules(g);const t0=Date.now(),dl=ms||1300,b=g.board,
  for(const n of top){let f=0;if(!final&&Date.now()-t0<dl){const rest=sets.filter(s=>!n.used.includes(s));f=bestOnePiece(n.board,rack,rest,t0,dl);}
   const tv=n.score+W*(0.5*f-4*pairsValue(n.board));n.tv=tv;n.f=f;if(!best||tv>best.tv)best={...n,tv};}
  if(best)best.top=top;return best||{pl:[],score:0,used:[]};}
-function expertPlan(g){const ms=1300;let bl=null,swap=false;
+function expertPlan(g){setN(g.board);const ms=1300;let bl=null,swap=false;
  if(false){const fits=countFits(g);
   if(fits<24){let bb=null;for(const type of ['cross','bomb'])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const cells=blastCells(type,r,c);
     const n=cells.filter(([y,x])=>g.board[y][x]&&!g.board[y][x].star).length-cells.filter(([y,x])=>g.board[y][x]&&g.board[y][x].star).length*3;if(!bb||n>bb.n)bb={type,r,c,n};}
@@ -163,7 +176,7 @@ function masterMove(g,ms){useRules(g);const t0=Date.now(),dl=ms||1400,me=g.turn,
 function masterBoost(g,score){const free=g.power[g.turn];if(score<=0||free<=0)return false;const left=MOVES-g.moves[g.turn];
  // save free charges for the biggest moves: use when the move is big, or when moves are running out
  if(left<=free||score>=900||(left<=3&&score>=300))return {d:1,t:0};return false;}
-function masterPlan(g){let bl=null,swap=false;
+function masterPlan(g){setN(g.board);let bl=null,swap=false;
  if(canPower(g)&&g.power[g.turn]>1&&countFits(g)<16){let bb=null;for(const type of ['cross','bomb'])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const cells=blastCells(type,r,c);const n=cells.filter(([y,x])=>g.board[y][x]&&!g.board[y][x].star).length-cells.filter(([y,x])=>g.board[y][x]&&g.board[y][x].star).length*2;if(!bb||n>bb.n)bb={type,r,c,n};}
   if(bb&&bb.n>=5&&aiMove(g,{beam:60,maxPieces:3,ms:150}).score<100)bl={type:bb.type,r:bb.r,c:bb.c,...blast(g,bb.type,bb.r,bb.c)};}
  const m=masterMove(g,bl?1150:1400);
@@ -190,7 +203,7 @@ function aiPlan(g,level){useRules(g);level=level||'medium';if(level==='expert')r
   if(best&&best.n>=3){bl={type:best.type,r:best.r,c:best.c,...blast(g,best.type,best.r,best.c)};}}
  const m=aiMove(g,opt);return {blast:bl,pl:m.pl,boost:m.boost};}
 // v23: resign = player p quits; the other player wins (gets the win coins)
-function resign(g,p){if(g.over)return false;g.over=true;g.resigned=p;g.winner=1-p;g.coins[1-p]+=WIN_COINS;return true;}
-const api={useRules,evaluate,single,resign,norm,capB,charges,spendCharge,dbl,expertMove,expertPlan,masterMove,masterPlan,pairsValue,previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,N,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
+function resign(g,p){if(g.over)return false;g.over=true;g.resigned=p;g.winner=1-p;g.coins[1-p]+=WIN_COINS;if(g.team)g.team.st[1-p][1-g.team.sub[1-p]].coins+=WIN_COINS;return true;}
+const api={teamInit,seat,teamCoins,totalMoves,get N(){return N;},useRules,evaluate,single,resign,norm,capB,charges,spendCharge,dbl,expertMove,expertPlan,masterMove,masterPlan,pairsValue,previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
 if(typeof module!=='undefined')module.exports=api;else root.Logic=api;
 })(this);

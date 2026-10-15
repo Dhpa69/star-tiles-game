@@ -4,7 +4,7 @@ const card=document.querySelector('#overlay .card');if(!card)return;const $q=id=
 const mk=(tag,cls,html)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;};
 // tiles proxy the original buttons (other scripts keep updating those, so they stay in the DOM, hidden)
 const tiles=mk('div','htiles');
-const T=[['🎯','Missions','misBtn'],['🏆','Ranks','lbBtn'],['🎨','Style','cosBtn'],['🎁','Invite','invBtn'],['🪙','Shop',null,()=>window.openShop&&openShop()],['👤','Account','acBtn'],['❓','How to','tut',()=>window.StTut&&StTut.open()],['📣','Share',null,()=>window.StShare&&StShare.home()],['📣','Share',null,()=>window.StShare&&StShare.home()],['⚙️','More','more']];
+const T=[['🎯','Missions','misBtn'],['🏆','Ranks','lbBtn'],['🎨','Style','cosBtn'],['🎁','Invite','invBtn'],['🪙','Shop',null,()=>window.openShop&&openShop()],['👤','Account','acBtn'],['❓','How to','tut',()=>window.StTut&&StTut.open()],['👥','Team 2v2',null,()=>window.StTeam&&StTeam.open()],['📣','Share',null,()=>window.StShare&&StShare.home()],['📣','Share',null,()=>window.StShare&&StShare.home()],['⚙️','More','more']];
 for(const [ic,lb,id,fn] of T){const b=mk('button','htile','<i>'+ic+'</i><span>'+lb+'</span>');b.dataset.for=id||'';b.onclick=()=>{if(fn)return fn();if(id==='more')return more.classList.toggle('open');const o=$q(id);if(o)o.click();};tiles.appendChild(b);}
 // "More" drawer with settings rows
 const more=mk('div','hmore');['muteBtn','chatOffBtn','rkBtn'].forEach(id=>{const e=$q(id);if(e)more.appendChild(e);});

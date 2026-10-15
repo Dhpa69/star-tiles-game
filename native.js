@@ -102,7 +102,7 @@ setInterval(()=>syncRooms(false),20000);
 // after my online move, ping the other player's device(s)
 if(typeof Online!=='undefined'&&Online.act){const _a=Online.act.bind(Online);Online.act=function(a){const r=_a(a);try{if(a&&(a.type==='commit'||a.type==='resign')){const code=Online.st.code,me=meIdx();
   setTimeout(()=>fetch(C.supabaseUrl+'/functions/v1/notify-turn',{method:'POST',headers:{'content-type':'application/json',apikey:C.supabaseAnon,Authorization:'Bearer '+C.supabaseAnon},
-   body:JSON.stringify({room:code,from_device:DEV,from_name:profile.name||'Player',scores:[g.scores[me],g.scores[1-me]],over:!!g.over})}).catch(()=>{}),300);}}catch(e){}return r;};}
+   body:JSON.stringify(Object.assign({room:code,from_device:DEV,from_name:profile.name||'Player',scores:[g.scores[me],g.scores[1-me]],over:!!g.over},g.team&&window.StTeam?StTeam.notifyInfo():{}))}).catch(()=>{}),300);}}catch(e){}return r;};}
 if(PN&&LS('startiles.push',null))askPush(); // re-register on launch (token can change)
 
 

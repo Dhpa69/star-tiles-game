@@ -32,7 +32,7 @@ const Online=(function(){
  function wireDC(dc){st.dc=dc;dc.onopen=()=>{st.p2p=true;st.lastSeen=Date.now();st.handlers.p2p&&st.handlers.p2p(true);try{dc.send(JSON.stringify({t:'ping',have:st.applied,from:st.id}));}catch(e){}};
   dc.onclose=()=>{const was=st.p2p;st.p2p=false;st.dc=null;if(was){st.handlers.p2p&&st.handlers.p2p(false);clearTimeout(st.rtcT);st.rtcT=setTimeout(()=>rtcStart(),30000);}};
   dc.onmessage=e=>{let d;try{d=JSON.parse(e.data);}catch(_){return;}if(!d||d.from===st.id)return;st.lastSeen=Date.now();st.handlers.msg&&st.handlers.msg(d);};}
- function rtcOK(){return typeof RTCPeerConnection!=='undefined'&&st.on&&st.seed!=null;}
+ function rtcOK(){return typeof RTCPeerConnection!=='undefined'&&st.on&&st.seed!=null&&!st.team;} // v59: 4-phone team rooms stay on the broadcast relay
  // host makes the offer; joiner asks with 'req'. Gives up quietly (relay mode) if no answer within 20s.
  async function rtcStart(force){if(!rtcOK()||(!force&&st.dc&&st.dc.readyState==='open'))return;if(!st.host){sendSig({k:'req'});return;}
   st.offerAt=Date.now();rtcClose();const pc=new RTCPeerConnection(ICE),sid=Math.random().toString(36).slice(2,8);st.pc=pc;st.sid=sid;wireDC(pc.createDataChannel('game',{ordered:true}));
@@ -69,7 +69,7 @@ const Online=(function(){
   try{const old=JSON.parse(localStorage.getItem(SKEY));if(old&&old.code&&!m[old.code]){old.lastAct=old.savedAt||Date.now();m[old.code]=old;}if(old){localStorage.removeItem(SKEY);localStorage.setItem(GKEY,JSON.stringify(m));}}catch(e){}return m;}
  function putAll(m){try{localStorage.setItem(GKEY,JSON.stringify(m));}catch(e){}}
  function upd(code,f){const m=all();if(!m[code])return;f(m[code]);putAll(m);}
- function persist(extra){if(!st.on||!st.code)return;const m=all(),o=m[st.code]||{};m[st.code]=Object.assign(o,{v:2,code:st.code,me:st.me,host:st.host,id:st.id,seed:st.seed,names:st.names,coins:st.coins,log:st.log,savedAt:Date.now(),lastAct:Math.max(o.lastAct||0,st.lastAct||0)},extra||{});putAll(m);}
+ function persist(extra){if(!st.on||!st.code)return;const m=all(),o=m[st.code]||{};m[st.code]=Object.assign(o,{v:2,team:!!st.team,code:st.code,me:st.me,host:st.host,id:st.id,seed:st.seed,names:st.names,coins:st.coins,log:st.log,savedAt:Date.now(),lastAct:Math.max(o.lastAct||0,st.lastAct||0)},extra||{});putAll(m);}
  // v25: other saved rooms are checked with ONE multi-topic request (ntfy "t1,t2,.../json?poll=1&since=<unix>"),
  // at most every 3 min (10 min after a 429), never while connecting to a room. Rooms finished >1 day ago are skipped.
  let pollGap=180000,pollT=null,polling=false,lastPoll=0;
@@ -105,9 +105,9 @@ const Online=(function(){
   saved(code){const m=all();if(code)return m[code]||null;const c=st.code&&m[st.code]?st.code:Object.keys(m)[0];return c?m[c]:null;},
   clear(code){const m=all();const c=code||st.code;delete m[c];putAll(m);if(!(st.on&&st.code===c))MQ.unsub(T(c)+'/#');},
   sendTo(code,id,msg){msg.from=id;publish(code,msg);return fetch(RELAY+'startiles-room-'+code,{method:'POST',body:JSON.stringify(msg)}).catch(()=>{});},
-  host(name,coins,h){Object.assign(st,{on:true,host:true,me:0,code:rnd(),applied:0,log:[],seed:null,handlers:h});st.topic='startiles-room-'+st.code;st.id=Math.random().toString(36).slice(2,10);st.seen=new Set();st.lastAct=Date.now();listen();persist();return st.code;},
-  join(code,name,coins,h){Object.assign(st,{on:true,host:false,me:1,code:clean(code),applied:0,log:[],seed:null,handlers:h});st.topic='startiles-room-'+st.code;st.id=Math.random().toString(36).slice(2,10);st.seen=new Set();st.lastAct=Date.now();listen();persist();send({t:'hello',name,coins});},
-  resume(s,h){Object.assign(st,{on:true,host:s.host,me:s.me,code:s.code,id:s.id,applied:(s.log||[]).length,log:(s.log||[]).slice(),seed:s.seed,lastAct:s.lastAct||0,names:s.names,coins:s.coins,handlers:h});st.topic='startiles-room-'+st.code;
+  host(name,coins,h){Object.assign(st,{team:false,on:true,host:true,me:0,code:rnd(),applied:0,log:[],seed:null,handlers:h});st.topic='startiles-room-'+st.code;st.id=Math.random().toString(36).slice(2,10);st.seen=new Set();st.lastAct=Date.now();listen();persist();return st.code;},
+  join(code,name,coins,h){Object.assign(st,{team:false,on:true,host:false,me:1,code:clean(code),applied:0,log:[],seed:null,handlers:h});st.topic='startiles-room-'+st.code;st.id=Math.random().toString(36).slice(2,10);st.seen=new Set();st.lastAct=Date.now();listen();persist();send({t:'hello',name,coins});},
+  resume(s,h){Object.assign(st,{team:!!s.team,on:true,host:s.host,me:s.me,code:s.code,id:s.id,applied:(s.log||[]).length,log:(s.log||[]).slice(),seed:s.seed,lastAct:s.lastAct||0,names:s.names,coins:s.coins,handlers:h});st.topic='startiles-room-'+st.code;
    st.seen=new Set();listen();send({t:'back',have:st.applied});},
   setGame(seed,names,coins){st.seed=seed;st.names=names;st.coins=coins;persist();},
   rtcStart,rtcClose,

@@ -511,3 +511,17 @@ body.adpause *,body.adpause *::before,body.adpause *::after{animation-play-state
 #shareP .shrow{display:flex;flex-direction:column;gap:8px}#shareP .shrow .btn{text-align:center;text-decoration:none;display:block}
 .shnote{display:block;opacity:.8;font-size:12px;margin:6px 0;text-align:center}
 .shx{background:#000!important;color:#fff!important}.shfb{background:#1877f2!important;color:#fff!important}.shwa{background:#25d366!important;color:#04220f!important}
+/* v59 team 2v2 */
+.htiles{grid-template-columns:repeat(5,1fr)}
+#board.b10{gap:2px;padding:3px}#board.b10 .cell{font-size:.8em}
+#tchips{display:flex;width:100%;box-sizing:border-box;align-self:stretch;justify-content:space-between;gap:6px;padding:2px 8px 4px;font-size:11px}
+#tchips .tcs{display:flex;gap:4px;flex-wrap:wrap}#tchips .tcs.tB{justify-content:flex-end}
+.tchip{padding:2px 7px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);white-space:nowrap;opacity:.75;max-width:44vw;overflow:hidden;text-overflow:ellipsis}
+.tchip b{font-weight:600;opacity:.8}.tchip.act{opacity:1;border-color:#ffd54a;box-shadow:0 0 8px rgba(255,213,74,.5)}.tchip.me{text-decoration:underline}
+.tA .tchip{color:#ff9bd6}.tB .tchip{color:#8fd8ff}
+#teamP{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:8000;padding:12px}
+#teamP.show{display:flex}#teamP .tcard{max-height:90vh;overflow:auto;width:100%;max-width:420px;display:flex;flex-direction:column;gap:8px}
+#teamP .tsub{font-size:12px;opacity:.75;margin:2px 0}#teamP details summary{list-style:none;text-align:center}#teamP details summary::-webkit-details-marker{display:none}
+#teamP .tnames{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}#teamP .tnames b{grid-column:1/-1;font-size:12px}
+#teamP input{padding:8px;border-radius:8px;border:1px solid #445;background:#0b0f22;color:#fff;font-size:16px;width:100%;box-sizing:border-box}
+#teamP .trow{display:flex;gap:6px}#teamP .trow .btn{flex:1}

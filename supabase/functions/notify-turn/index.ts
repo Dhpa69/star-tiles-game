@@ -22,7 +22,7 @@ const recent = new Map<string, number>(); // simple per-room rate limit (per ins
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const { room, from_device, from_name, scores, over } = await req.json();
+    const { room, from_device, from_name, scores, over, team, mover_team, next_player } = await req.json();
     if (!room || !from_device || typeof room !== "string" || room.length > 16) return new Response("bad", { status: 400, headers: cors });
     const k = room + ":" + from_device, now = Date.now();
     if ((recent.get(k) ?? 0) > now - 4000) return new Response("slow down", { status: 429, headers: cors });
@@ -32,8 +32,10 @@ Deno.serve(async (req) => {
     const name = String(from_name || "your friend").slice(0, 24);
     const mine = Array.isArray(scores) ? Number(scores[1] || 0) : null, theirs = Array.isArray(scores) ? Number(scores[0] || 0) : null; // scores = [mover, recipient]
     const sc = mine === null ? "" : `You ${mine.toLocaleString("en-US")} – ${name} ${theirs!.toLocaleString("en-US")}`;
-    const title = over ? `Game over vs ${name}` : `Your turn vs ${name}`;
-    const body = over ? `${sc ? sc + ". " : ""}Tap to see the result.` : `${name} just played.${sc ? " " + sc : ""}`;
+    // v59 team 2v2: everyone in the room hears whose turn it is (team + player)
+    const np = String(next_player || "").slice(0, 40), mt = String(mover_team || "").slice(0, 10);
+    const title = team ? (over ? `Team 2v2 game over` : `Team 2v2: ${np} is up`) : over ? `Game over vs ${name}` : `Your turn vs ${name}`;
+    const body = team ? `${name}${mt ? " (" + mt + ")" : ""} just played.${mine === null ? "" : " " + (mt || "Them") + " " + theirs!.toLocaleString("en-US") + " – " + (mt === "Team A" ? "Team B" : "Team A") + " " + mine.toLocaleString("en-US")}` : over ? `${sc ? sc + ". " : ""}Tap to see the result.` : `${name} just played.${sc ? " " + sc : ""}`;
     const out: unknown[] = [];
     if (env("VAPID_PRIVATE_KEY")) webpush.setVapidDetails(env("VAPID_SUBJECT") || "mailto:dhaval83@icloud.com", env("VAPID_PUBLIC_KEY"), env("VAPID_PRIVATE_KEY"));
     for (const r of rows ?? []) {
