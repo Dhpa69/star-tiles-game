@@ -1,6 +1,6 @@
 const L=require('./logic.js'),a=require('assert'),fs=require('fs');
 // legacy tests below were written for rules v1 (pre-v36); run them under rv 1 to prove old games replay unchanged
-const _ng=L.newGame;L.newGame=(...x)=>{const G=_ng(...x);G.rv=1;return G;};L.useRules({rv:1});
+const _ng=L.newGame;L.newGame=(...x)=>{const G=_ng(...x);G.rv=1;G.pu1=false;return G;}; /* legacy rule tests; v64 rule tested at the end */ L.useRules({rv:1});
 let s=1;const rng=()=>(s=(s*16807)%2147483647)/2147483647;
 const empty=()=>Array.from({length:8},()=>Array(8).fill(null));
 const g=L.newGame('ai',rng);a.equal(g.racks[0].length,9);a.equal(L.canPlace(g.board,0,0),false);a.ok(L.canPlace(g.board,2,3));
@@ -195,3 +195,16 @@ console.log('ui scripts parse ok');
  for(let k=0;k<6&&!G.over;k++){const t=Date.now();const m=L2.aiPlan(G,'master');worst=Math.max(worst,Date.now()-t);if(m.swap&&L2.swap(G))continue;
   const pv=L2.previewMove(G,m.pl,m.boost);if(m.pl.length&&!L2.validPiece(G.board,[],m.pl.slice(0,3)))throw new Error('master invalid');L2.commit(G,m.pl,m.boost);}
  if(worst>2200)throw new Error('master too slow '+worst);console.log('v46 master ok, worst '+worst+'ms');}
+// v64: each power-up type once per game per player
+{const a=require('assert');const L=require('./logic.js');const E=G=>{G.board=G.board.map(r=>r.map(()=>null));G.board[1][3]={color:'red'};G.board[1][4]={color:'red'};return G;};
+ const G=E(L.newGame('pvp',null,0));G.coins=[500,500];a.ok(G.pu1);
+ let r=L.commit(G,[{r:1,c:5,color:'red'}],{d:2,t:0});a.equal(r.doubles,1,'max one Double per move');
+ L.commit(G,[]);E(G);r=L.commit(G,[{r:1,c:5,color:'red'}],{d:1,t:0});a.equal(r.doubles,0,'second Double in the game is refused even with coins');
+ L.commit(G,[]);E(G);r=L.commit(G,[{r:1,c:5,color:'red'}],{d:0,t:1});a.equal(r.triples,1,'Triple still allowed after a Double');
+ a.ok(L.blast(G,'bomb',4,4));L.commit(G,[]);L.commit(G,[]);a.equal(L.blast(G,'bomb',4,4),null,'second Bomb refused');a.ok(L.blast(G,'cross',4,4),'Cross still allowed');
+ a.deepEqual(L.puTypes(G),[]);L.commit(G,[]);a.deepEqual(L.puTypes(G),['cross','bomb'],'opponent has its own set');
+ // team: per player
+ const T=L.newGame('pvp',null,0,10);L.teamInit(T,[['a','b'],['c','d']]);T.coins=[500,500];a.ok(L.blast(T,'bomb',5,5));L.commit(T,[]);L.commit(T,[]);a.ok(L.blast(T,'bomb',5,5),'teammate A2 has their own Bomb');L.commit(T,[]);L.commit(T,[]);a.equal(L.blast(T,'bomb',5,5),null,'A1 bomb used');
+ // AI never picks a used type
+ for(let i=0;i<5;i++){const H=L.newGame('ai');H.turn=1;H.puUsed={1:{bomb:1,cross:1,double:1}};const m=L.aiPlan(H,'expert');a.ok(!m.blast,'AI must not blast with used types');const s0=H.coins[1];L.commit(H,m.pl,m.boost);}
+ console.log('v64 power-up once-per-type ok');}

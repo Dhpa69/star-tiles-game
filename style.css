@@ -531,3 +531,6 @@ body.adpause *,body.adpause *::before,body.adpause *::after{animation-play-state
 /* v61 tray while others play */
 #rack{position:relative}#rack.waiting .set{opacity:.38;filter:grayscale(.6);pointer-events:none}
 #rack .rkwait{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(10,14,34,.85);border:1px solid rgba(255,255,255,.18);color:#fff;padding:5px 12px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap;pointer-events:none;z-index:2}
+
+/* v64 used power-ups */
+#pmenu .used{opacity:.4;filter:grayscale(1);position:relative}#pmenu .usedtag{position:absolute;right:10px;top:8px;font-size:11px;background:#555;color:#fff;padding:2px 7px;border-radius:999px}
