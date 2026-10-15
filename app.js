@@ -56,12 +56,18 @@ function render(){setTimeout(fit,0);clearTimeout(render.sv);render.sv=setTimeout
   const pi=pieceAt(r,c);if(pi>=0){const P=pieces[pi];if(P===spinP)d.classList.add('pspin');if(P===shakeP)d.classList.add('pshake');if(P.tiles[1].r===r&&P.tiles[1].c===c&&false){}}
   if(willSet.has(r*BN()+c))d.classList.add('will');if(aimSet.has(r*BN()+c))d.classList.add('aimp');if(fxSet.has(r*BN()+c))d.classList.add('boom');
   if(gk.has(r*BN()+c))d.classList.add(ghost.ok?'gok':'gbad');if(show){if(show.hl.has(r*BN()+c))d.classList.add('ohl');if(show.drop.has(r*BN()+c))d.classList.add('odrop');}bd.appendChild(d);}
- const rk=$('rack');rk.innerHTML='';const who=g.mode==='pvp'||(g.team&&!isOn())?g.turn:meIdx(),rack=g.racks[who];
- for(let s=0;s<3;s++){const set=document.createElement('div'),o=L.normO(g.orient[who][s]);set.className='set '+(o%2?'v':'h')+(spin===s?' spin':'')+(sel===s&&g.turn===who?' sel':'');set.dataset.s=s;
-  const hidden=!rack[3*s]||(g.turn===who&&usedSet(s));
+ const rk=$('rack');rk.innerHTML='';
+ // v61: the tray always shows YOUR pieces (team vs computer: seat A1; online team: your seat; pass & play: whoever is up).
+ // Before, team games showed the side's currently-loaded player, i.e. the AI teammate's / opponents' trays during their turns.
+ let who=g.mode==='pvp'?g.turn:meIdx(),rack=g.racks[who],ori=g.orient[who],act=g.turn===who;
+ if(g.team&&g.mode!=='pvp'){const k=isOn()?Online.st.me&1:0;if(g.team.sub[who]===k){rack=g.racks[who];ori=g.orient[who];}else{const p=g.team.st[who][k]||{};rack=p.rack||[];ori=p.orient||[0,0,0];}act=g.turn===who&&g.team.sub[who]===k;}
+ rk.classList.toggle('waiting',!act&&!g.over&&g.mode!=='pvp');
+ for(let s=0;s<3;s++){const set=document.createElement('div'),o=L.normO(ori[s]||0);set.className='set '+(o%2?'v':'h')+(spin===s?' spin':'')+(sel===s&&act?' sel':'');set.dataset.s=s;
+  const hidden=!rack[3*s]||(act&&usedSet(s));
   const disp=L.pieceTiles(rack,s,o,0,0);for(let j=0;j<3;j++){const d=document.createElement('div');d.className='rt';if(!hidden)d.innerHTML=tileHTML(disp[j].color);set.appendChild(d);}
-  if(!hidden){const rb=document.createElement('button');rb.className='rot';rb.textContent='↻';rb.dataset.s=s;set.appendChild(rb);}else set.classList.add('empty');
+  if(!hidden&&act){const rb=document.createElement('button');rb.className='rot';rb.textContent='↻';rb.dataset.s=s;set.appendChild(rb);}else if(hidden)set.classList.add('empty');
   rk.appendChild(set);}
+ if(!act&&!g.over&&g.mode!=='pvp'){const lb=document.createElement('div');lb.className='rkwait';const nm=g.team?(g.team.n[g.turn][g.team.sub[g.turn]]||'Player')+(g.team.ai[g.turn][g.team.sub[g.turn]]?' (AI)':''):NAMES()[g.turn];lb.textContent=nm+' is playing…';rk.appendChild(lb);}
  $('s0').textContent=g.scores[0].toLocaleString();$('s1').textContent=g.scores[1].toLocaleString();if(tally){$('s'+tally.who).textContent=tally.base.toLocaleString();}if(g.pot!==undefined)delete g.pot; // old saves
  $('n0').textContent=NAMES()[0];$('n1').textContent=NAMES()[1];$('n0').className=g.turn===0?'on':'';$('n1').className=g.turn===1?'on':'';
  const mv=Math.min(g.moves[g.turn]+1,10),fin=L.isFinal(g)&&!g.over;$('banner').textContent=g.over?'GAME OVER':(g.team?(fin?'FINAL MOVE · ':'')+'ROUND '+Math.min(10,Math.floor((g.moves[0]+g.moves[1])/4)+1)+' / 10':(fin?'FINAL MOVE!':'MOVE '+mv+' / 10'));$('banner').className=fin?'final':'';setTimeout(updReplay,0);
