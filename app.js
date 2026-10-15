@@ -141,7 +141,7 @@ function next(){sel=g.over?null:firstFree();render();if(g.over)return finish();a
  if(g.mode==='pvp'){say(NAMES()[g.turn]+"'s turn");return;}
  if(isOn()){if(g.turn!==meIdx()||!mySeatTurn())say('Waiting for '+(window.StTeam&&g.team?StTeam.cur():NAMES()[g.turn])+'…');return;}
  if(g.team&&!aiSeat()){say((window.StTeam?StTeam.cur():'')+' – your turn');return;}
- if(aiSeat()){busy=true;render();const G0=g;setTimeout(()=>planAI(G0,profile.difficulty,m=>{if(g!==G0||g.over||!aiSeat()){busy=false;return;}const _w=g.turn;try{if(m.swap&&L.swap(g,0)){busy=false;say('Computer swapped a piece');next();return;}const bl=m.blast?{type:m.blast.type,cells:m.blast.cells,pops:m.blast.pops}:null;pieces=[];
+ if(aiSeat()){busy=true;render();const G0=g;setTimeout(()=>planAI(G0,profile.difficulty,m=>{if(g!==G0||g.over||!aiSeat()){busy=false;return;}const _w=g.turn;try{if(m.swap&&L.swap(g,m.swapS!=null?m.swapS:0)){busy=false;say('Computer swapped a piece');next();return;}const bl=m.blast?{type:m.blast.type,cells:m.blast.cells,pops:m.blast.pops}:null;pieces=[];
   const pre=g.board.map(r=>r.slice()),res=L.commit(g,m.pl,m.boost);markOwner(_w); // state is final now; the rest is only a show
   showMove({who:_w,pre,pl:m.pl,boost:m.boost,blast:bl,res},()=>{busy=false;next();});}catch(err){console.error('AI move failed',err);busy=false;try{L.commit(g,[],false);}catch(e){}next();}}),500);}}
 function finish(){endCtx={mode:g.mode,on:isOn()?{code:Online.st.code,id:Online.st.id,names:g.names,me:meIdx()}:null};clearSave();const n=NAMES(),w=g.winner,me=meIdx();{const on=isOn(),oo=on&&Online.saved(Online.st.code);if(g.mode!=='pvp'&&!(oo&&oo.counted))setTimeout(()=>misTrack({type:'game',won:w===me,online:on}),900);}

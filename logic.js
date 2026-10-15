@@ -82,7 +82,7 @@ function dbl(b){return norm(b).d;}
 function previewMove(g,pl,boost){useRules(g);return evaluate(g.board,pl,capB(g,boost));}
 function commit(g,pl,boost){useRules(g);const p=g.turn;
  {const B=capB(g,boost);for(let i=0;i<B.d+B.t;i++)spendCharge(g);if(B.d)puMark(g,'double');if(B.t)puMark(g,'triple');boost=B;}
- const res=evaluate(g.board,pl,boost);g.board=res.board;g.scores[p]+=res.score; // v21: no pot, no pass bonus
+ const res=evaluate(g.board,pl,boost);g.board=res.board;g.scores[p]+=res.score;{g.mh=g.mh||{};const k=puKey(g);(g.mh[k]=g.mh[k]||[]).push(res.score/(res.factor||1));} // v21: no pot, no pass bonus
  const rack=g.racks[p];pl.forEach(x=>{let i=(x.slot!=null&&rack[x.slot]===x.color)?x.slot:rack.indexOf(x.color);if(i>=0)rack[i]=null;});
  endTurn(g);return res;}
 function refill(g){const r=g.racks[g.turn];for(let s=0;s<3;s++)if(!r[3*s]){piece(g.rng,g.dv).forEach((t,j)=>r[3*s+j]=t);g.orient[g.turn][s]=0;}}
@@ -202,7 +202,7 @@ function aiBoost(g,score,at){const free=g.power[g.turn];if(score<=0||free<=0)ret
  if(score>=at||isFinal(g))return {d:1,t:0};return false;} // v34: Double only, once per move
 function single(b){const B=norm(b);return B.d+B.t>0?{d:1,t:0}:false;} // v34: new moves = one Double max (old logs replay as recorded via commit/capB)
 const LEVELS={easy:{beam:3,maxPieces:1,ms:200},medium:{beam:40,maxPieces:3,ms:600},hard:{beam:400,maxPieces:3,ms:450,saveStars:true,boostAt:200}};
-function aiPlan(g,level){useRules(g);level=level||'medium';if(level==='expert')return expertPlan(g);if(level==='master')return masterPlan(g);const opt=LEVELS[level]||LEVELS.medium,rng=g.rng||Math.random;
+function aiPlan(g,level){useRules(g);level=level||'medium';if(level!=='easy'&&!g.oldAI)return ladderPlan(g,level);if(level==='expert')return expertPlan(g);if(level==='master')return masterPlan(g);const opt=LEVELS[level]||LEVELS.medium,rng=g.rng||Math.random;
  if(level==='easy'){ // often a random weak move, 1 piece, rarely power-ups
   if(rng()<0.5){const rack=g.racks[g.turn],opts=[];for(let s=0;s<3;s++){if(!rack[3*s])continue;for(const o of [0,1])for(let r=0;r<N;r++)for(let c=0;c<N;c++){const t=pieceTiles(rack,s,o,r,c);if(validPiece(g.board,[],t))opts.push(t);}}
    return {blast:null,pl:opts.length&&rng()<0.7?opts[Math.floor(rng()*opts.length)]:[],boost:false};}
@@ -218,8 +218,24 @@ function aiPlan(g,level){useRules(g);level=level||'medium';if(level==='expert')r
  const m=aiMove(g,opt);return {blast:bl,pl:m.pl,boost:m.boost};}
 // v23: resign = player p quits; the other player wins (gets the win coins)
 function resign(g,p){if(g.over)return false;g.over=true;g.resigned=p;g.winner=1-p;g.coins[1-p]+=WIN_COINS;if(g.team)g.team.st[1-p][1-g.team.sub[1-p]].coins+=WIN_COINS;return true;}
+// v68 difficulty ladder (measured, see report): Medium = narrow greedy, sometimes 2nd-best, Double on the first decent move;
+// Hard = full greedy; Expert = wide greedy + Double saved for a big move + blasts on a crowded board; Master = widest + best Double timing + star saving.
+function ownHist(g){return (g.mh&&g.mh[puKey(g)])||[];}
+function smartBoost(g,score,k){if(score<=0||!puOk(g,'double')||charges(g)<1)return false;const h=ownHist(g),avg=h.length?h.reduce((a,b)=>a+b,0)/h.length:0,left=(g.team?MOVES:MOVES)-(g.team?g.team.pm[g.turn][g.team.sub[g.turn]]:g.moves[g.turn]);
+ if(left<=1)return {d:1,t:0};if(score>=Math.max(k.min,k.mul*avg))return {d:1,t:0};if(left<=2&&score>=avg)return {d:1,t:0};return false;}
+function bestBlast(g,minN){if(!canPower(g)||countFits(g)>=12)return null;let best=null;for(const type of puTypes(g))for(let r=0;r<N;r++)for(let c=0;c<N;c++){const n=blastCells(type,r,c).filter(([y,x])=>g.board[y][x]).length;if(!best||n>best.n)best={type,r,c,n};}
+ if(best&&best.n>=minN)return {type:best.type,r:best.r,c:best.c,...blast(g,best.type,best.r,best.c)};return null;}
+function ladderPlan(g,level){useRules(g);const rng=g.rng||Math.random;const rec=(m,boost,bl,swap)=>({blast:bl||null,pl:m.pl,boost,swap:swap||false,swapS:swap?swap.s:undefined});
+ if(level==='medium'){const m=aiMove(g,{beam:8,maxPieces:2,ms:250});let pl=m;if(rng()<0.3){const alt=aiMove(g,{beam:3,maxPieces:1,ms:120});if(alt.pl.length)pl=alt;}
+  return rec(pl,pl.score>=800&&puOk(g,'double')&&charges(g)>0?{d:1,t:0}:false);}
+ if(level==='hard'){const m=aiMove(g,{beam:20,maxPieces:2,ms:400});return rec(m,m.score>=1500&&puOk(g,'double')&&charges(g)>0?{d:1,t:0}:false);}
+ if(level==='expert'){const bl=bestBlast(g,5);const m=aiMove(g,{beam:200,maxPieces:3,ms:900});return rec(m,smartBoost(g,m.score,{min:2500,mul:1.6}),bl);}
+ /* master: widest search, best Double timing, star saving, and uses its free swap on a dead piece */
+ const m=aiMove(g,{beam:500,maxPieces:3,ms:2200,saveStars:true});const h=ownHist(g),avg=h.length?h.reduce((a,b)=>a+b,0)/h.length:0,left=MOVES-(g.team?g.team.pm[g.turn][g.team.sub[g.turn]]:g.moves[g.turn]);
+ if(g.swaps[g.turn]>0&&left>2&&m.score<Math.max(300,0.35*avg)){const rack=g.racks[g.turn],used=new Set(m.pl.map(t=>Math.floor(t.slot/3)));const s0=[0,1,2].find(s=>rack[3*s]&&!used.has(s));if(s0!=null)return rec({pl:[]},false,null,{s:s0});}
+ const bl=m.score<300?bestBlast(g,4):null;const m2=bl?aiMove(g,{beam:400,maxPieces:3,ms:900,saveStars:true}):m;return rec(m2,smartBoost(g,m2.score,{min:3000,mul:2}),bl);}
 const api={puOk,puTypes,puKey,setN,teamInit,seat,teamCoins,totalMoves,get N(){return N;},useRules,evaluate,single,resign,norm,capB,charges,spendCharge,dbl,expertMove,expertPlan,masterMove,masterPlan,pairsValue,previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
 // v66: a plan never asks for a power-up the player may not use (used type / no charges)
-{const _ap=api.aiPlan;api.aiPlan=function(g,l){const m=_ap(g,l);if(m&&m.boost){const B=capB(g,m.boost);m.boost=B.d+B.t?B:false;}if(m&&m.blast&&!puOk(g,m.blast.type))m.blast=null;return m;};}
+{const _ap=api.aiPlan;api.aiPlan=function(g,l){const m=_ap(g,l);if(m&&m.boost){const B=capB(g,m.boost);m.boost=B.d+B.t?B:false;}return m;};}
 if(typeof module!=='undefined')module.exports=api;else root.Logic=api;
 })(this);
