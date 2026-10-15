@@ -528,3 +528,14 @@ function plainPop(tot){if(!tot||tot==='+0')return;let L=$('celeb');if(!L){L=docu
 // v56: a friend joining a waiting room must not replace the game you're playing right now
 function busyElsewhere(){try{return !!(g&&g._live&&!g.over&&g.mode!=='online'&&!$('overlay').classList.contains('show')&&!$('onl').classList.contains('show'));}catch(e){return false;}}
 function bgStart(seed,names,coins,rv,who){try{Online.setGame(seed,names,coins);Online.persist({rv:rv===2?2:1});}catch(e){}renderGames();bannerSay('🌐 '+(who||'Your friend')+' joined room '+Online.st.code+' – open it from Home › My online games');}
+// v63: sequence move replays – the next player's (AI / teammate / online opponent) replay waits until the previous
+// move's score display, floating numbers, tile pops and celebration have fully cleared. Moves queue in order.
+// The AI still plans meanwhile (only the visual replay waits). Polling uses setTimeout, so the ad pause also holds it.
+(function(){const _sm=showMove;let chain=Promise.resolve();
+ const clear=()=>!tally&&!(pops&&pops.length)&&!document.querySelector('.flt,.fxh')&&!(document.getElementById('celeb')&&document.getElementById('celeb').classList.contains('show'));
+ function waitClear(fn){const t0=Date.now();let ok=0;(function poll(){if(clear()){if(++ok>=2)return fn();}else ok=0;if(Date.now()-t0>7000)return fn();setTimeout(poll,90);})();}
+ window.visualClear=clear;
+ showMove=window.showMove=function(mv,done){busy=true;
+  window.replayActive=(window.replayActive||0)+1;
+  chain=chain.then(()=>new Promise(res0=>{const res=()=>{window.replayActive=Math.max(0,window.replayActive-1);res0();};waitClear(()=>{busy=true;let fin=false;const t1=Date.now();const end=()=>{if(fin)return;fin=true;res();done&&done();};try{_sm(mv,end);}catch(e){console.error(e);end();}const r0=showRun;(function guard(){if(fin)return;if(showRun!==r0){fin=true;res();return;}if(Date.now()-t1>20000){end();return;}setTimeout(guard,500);})();});}));}; // a superseded replay never blocks the queue
+})();

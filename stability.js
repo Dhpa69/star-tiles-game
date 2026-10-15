@@ -1,7 +1,7 @@
 // v54: freeze protection – AI in a Web Worker, input-lock watchdog, error recovery
 (function(){
 let W=null,wid=0;const cbs={};
-function worker(){if(W!==null)return W;try{W=new Worker('ai-worker.js?v=62');W.onmessage=e=>{const c=cbs[e.data.id];delete cbs[e.data.id];if(c)c(e.data);};W.onerror=()=>{W=false;Object.keys(cbs).forEach(k=>{const c=cbs[k];delete cbs[k];c({ok:false});});};}catch(e){W=false;}return W;}
+function worker(){if(W!==null)return W;try{W=new Worker('ai-worker.js?v=63');W.onmessage=e=>{const c=cbs[e.data.id];delete cbs[e.data.id];if(c)c(e.data);};W.onerror=()=>{W=false;Object.keys(cbs).forEach(k=>{const c=cbs[k];delete cbs[k];c({ok:false});});};}catch(e){W=false;}return W;}
 function snap(G){const {rng,...rest}=G;return JSON.parse(JSON.stringify(rest));}
 // cb(plan) gets a plan whose blast (if any) is already applied to G, like L.aiPlan
 window.planAI=function(G,level,cb){window.aiThinking=true;const done=m=>{window.aiThinking=false;cb(m);};
@@ -13,7 +13,7 @@ window.planAI=function(G,level,cb){window.aiThinking=true;const done=m=>{window.
  try{w.postMessage({id,G:snap(G),level});}catch(e){fin=true;clearTimeout(to);delete cbs[id];sync();}};
 // watchdog: input lock stuck >8s (not counting AI thinking / a big celebration on screen / app hidden) → unlock and continue
 let since=0;
-setInterval(()=>{try{if(!busy||window.aiThinking||document.hidden||window.adPaused){since=0;return;}
+setInterval(()=>{try{if(!busy||window.aiThinking||window.replayActive||document.hidden||window.adPaused){since=0;return;} // v63: queued replays have their own time caps
  const celeb=document.getElementById('celeb');if(celeb&&getComputedStyle(celeb).display!=='none'&&celeb.classList.contains('show')){since=Math.max(since,Date.now()-4000);}
  if(!since){since=Date.now();return;}
  if(Date.now()-since>8000){since=0;console.warn('watchdog: unlocking stuck input');unstick();}}catch(e){}},1000);
