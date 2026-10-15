@@ -24,9 +24,9 @@ function bcast(){Online.send({t:'lobby',seats:lobby.map(x=>({name:x.name,side:x.
  if(lobby.length===4&&lobby.filter(x=>x.side===0).length===2){clearTimeout(bcast.t);bcast.t=setTimeout(go,900);}}
 function go(){const st=S();if(st.seed!=null||lobby.length!==4)return;const A=lobby.filter(x=>x.side===0),B=lobby.filter(x=>x.side===1),order=[A[0],A[1],B[0],B[1]];
  const seed=newSeed(),names=order.map(x=>x.name),coins=order.map(x=>x.coins),ids=order.map(x=>x.id);
- tstart={t:'start',seed,names,coins,rv:2,team:ids,pu1:1};st.me=ids.indexOf(st.id);st.team=true;Online.persist({tstart});Online.send(Object.assign({},tstart));beginOnline(seed,names,coins,[],2);}
+ tstart={t:'start',seed,names,coins,rv:2,team:ids,pu1:1,dv:2};st.me=ids.indexOf(st.id);st.team=true;Online.persist({tstart,dv:2});Online.send(Object.assign({},tstart));beginOnline(seed,names,coins,[],2);}
 function onStart(d){const st=S();if(st.host||st.seed!=null)return;const i=d.team.indexOf(st.id);if(i<0){showLobby('This team room is full.');return;}
- st.me=i;st.team=true;Online.persist({tstart:d});beginOnline(d.seed,d.names,d.coins,[],2);bannerSay('👥 You are '+d.names[i]+' on Team '+AB(i>>1)+' · teammate: '+d.names[i^1]);}
+ st.me=i;st.team=true;Online.persist({tstart:d,dv:d.dv===2?2:1});beginOnline(d.seed,d.names,d.coins,[],2);bannerSay('👥 You are '+d.names[i]+' on Team '+AB(i>>1)+' · teammate: '+d.names[i^1]);}
 function msg(d){const st=S();
  if(d.t==='lobby'){if(!st.host&&st.seed==null){if(d.full&&d.to===st.id)showLobby('This team room is full.');else if(d.seats){lobby=d.seats;showLobby(lobbyText());}}return true;}
  if(d.t==='hello'&&st.host&&st.team){onHello(d);return true;}

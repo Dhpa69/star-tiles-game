@@ -6,12 +6,21 @@ function mult(r,c){ if((r==0||r==N-1)&&(c==0||c==N-1)) return 3; const a=2,z=N-3
 function setN(b){if(b&&b.length)N=b.length;}
 function rnd(rng){return rng()<0.08?'star':COLORS[Math.floor(rng()*COLORS.length)];}
 function rndColor(rng){return COLORS[Math.floor(rng()*COLORS.length)];}
-function piece(rng){let st=false;return [0,1,2].map(()=>{let t=rnd(rng);if(t==='star'){if(st)t=rndColor(rng);st=true;}return t;});} // max 1 star per piece
-function deal(rng){return [].concat(piece(rng),piece(rng),piece(rng));}
-function newGame(mode,rng,first,size){rng=rng||Math.random;N=size||8;
+// v67 deal (g.dv=2): stars as before (~8% per tile, max 1 per piece); the colored tiles are
+// all the same color 1/24, exactly two the same 1/12 (3 colored tiles only), otherwise all different.
+// With a star the 2 colored tiles match 1/24 (star is wild, so that's effectively 3 of a kind), else differ.
+function piece2(rng){const t=[0,1,2].map(()=>null);let st=false;for(let i=0;i<3;i++)if(!st&&rng()<0.08){t[i]='star';st=true;}
+ const idx=[0,1,2].filter(i=>!t[i]),u=rng(),pick=ex=>{const c=COLORS.filter(x=>!ex.includes(x));return c[Math.floor(rng()*c.length)];};
+ let cols;if(u<1/24){const c=pick([]);cols=idx.map(()=>c);}
+ else if(idx.length===3&&u<1/24+1/12){const a=pick([]),b=pick([a]),odd=Math.floor(rng()*3);cols=[0,1,2].map(i=>i===odd?b:a);}
+ else{const used=[];cols=idx.map(()=>{const c=pick(used);used.push(c);return c;});}
+ idx.forEach((i,k)=>t[i]=cols[k]);return t;}
+function piece(rng,v){if(v===2)return piece2(rng);let st=false;return [0,1,2].map(()=>{let t=rnd(rng);if(t==='star'){if(st)t=rndColor(rng);st=true;}return t;});} // max 1 star per piece
+function deal(rng,v){return [].concat(piece(rng,v),piece(rng,v),piece(rng,v));}
+function newGame(mode,rng,first,size,dv){dv=dv===1?1:2;rng=rng||Math.random;N=size||8;
  const b=[];for(let r=0;r<N;r++){b.push([]);for(let c=0;c<N;c++)b[r].push(null);}
  {const m=N/2;[[m-1,m-1],[m-1,m],[m,m-1],[m,m]].forEach(([r,c])=>b[r][c]={color:rndColor(rng)});}
- return {orient:[[0,0,0],[0,0,0]],board:b,mode,rv:2,turn:first===1?1:0,first:first===1?1:0,moves:[0,0],scores:[0,0],racks:[deal(rng),deal(rng)],power:[2,2],swaps:[1,1],coins:[START_COINS,mode==='ai'?0:START_COINS],over:false,pu1:true,rng};}
+ return {orient:[[0,0,0],[0,0,0]],board:b,mode,rv:2,turn:first===1?1:0,first:first===1?1:0,moves:[0,0],scores:[0,0],dv,racks:[deal(rng,dv),deal(rng,dv)],power:[2,2],swaps:[1,1],coins:[START_COINS,mode==='ai'?0:START_COINS],over:false,pu1:true,rng};}
 const inb=(r,c)=>r>=0&&c>=0&&r<N&&c<N;
 function canPlace(b,r,c){setN(b); if(!inb(r,c)||b[r][c])return false;
  if(b.every(row=>row.every(t=>!t)))return true; // empty board: anywhere
@@ -76,20 +85,20 @@ function commit(g,pl,boost){useRules(g);const p=g.turn;
  const res=evaluate(g.board,pl,boost);g.board=res.board;g.scores[p]+=res.score; // v21: no pot, no pass bonus
  const rack=g.racks[p];pl.forEach(x=>{let i=(x.slot!=null&&rack[x.slot]===x.color)?x.slot:rack.indexOf(x.color);if(i>=0)rack[i]=null;});
  endTurn(g);return res;}
-function refill(g){const r=g.racks[g.turn];for(let s=0;s<3;s++)if(!r[3*s]){piece(g.rng).forEach((t,j)=>r[3*s+j]=t);g.orient[g.turn][s]=0;}}
+function refill(g){const r=g.racks[g.turn];for(let s=0;s<3;s++)if(!r[3*s]){piece(g.rng,g.dv).forEach((t,j)=>r[3*s+j]=t);g.orient[g.turn][s]=0;}}
 function canSwap(g){return g.swaps[g.turn]>0||g.coins[g.turn]>=EXTRA_COST;}
 // v20: swap replaces ONLY piece slot s; the turn and moves left are unchanged (placed pieces elsewhere stay).
 // s undefined = legacy v19 swap (all 9, ends turn) so old online logs replay identically.
 function swap(g,s){if(!canSwap(g))return false;if(g.swaps[g.turn]>0)g.swaps[g.turn]--;else g.coins[g.turn]-=EXTRA_COST;
- if(s===undefined||s===null){g.racks[g.turn]=deal(g.rng);g.orient[g.turn]=[0,0,0];endTurn(g);return true;}
- const p=piece(g.rng);for(let i=0;i<3;i++)g.racks[g.turn][s*3+i]=p[i];g.orient[g.turn][s]=0;return true;}
+ if(s===undefined||s===null){g.racks[g.turn]=deal(g.rng,g.dv);g.orient[g.turn]=[0,0,0];endTurn(g);return true;}
+ const p=piece(g.rng,g.dv);for(let i=0;i<3;i++)g.racks[g.turn][s*3+i]=p[i];g.orient[g.turn][s]=0;return true;}
 // v59 team 2v2: 2 sides (0=Team A,1=Team B) x 2 players. Each side slot holds its CURRENT player's rack/power/swaps/coins;
 // the waiting teammate is stashed in g.team.st. Order: first side P1, other side P1, first side P2, other side P2.
 function stash(g,s,k){g.team.st[s][k]={rack:g.racks[s],orient:g.orient[s],power:g.power[s],swaps:g.swaps[s],coins:g.coins[s]};}
 function load(g,s,k){const p=g.team.st[s][k];g.racks[s]=p.rack;g.orient[s]=p.orient;g.power[s]=p.power;g.swaps[s]=p.swaps;g.coins[s]=p.coins;g.team.st[s][k]=null;}
 function teamInit(g,names,ai,coins){const rng=g.rng||Math.random;coins=coins||[[g.coins[0],g.coins[0]],[g.coins[1],g.coins[1]]];
  g.team={n:names,ai:ai||[[0,0],[0,0]],sub:[0,0],pm:[[0,0],[0,0]],st:[[null,null],[null,null]]};
- for(const s of [0,1]){g.coins[s]=coins[s][0];g.team.st[s][1]={rack:deal(rng),orient:[0,0,0],power:2,swaps:1,coins:coins[s][1]};}return g;}
+ for(const s of [0,1]){g.coins[s]=coins[s][0];g.team.st[s][1]={rack:deal(rng,g.dv),orient:[0,0,0],power:2,swaps:1,coins:coins[s][1]};}return g;}
 function seat(g,s,k){if(!g.team||g.team.sub[s]===k)return;stash(g,s,g.team.sub[s]);load(g,s,k);g.team.sub[s]=k;} // make player k of side s the loaded one
 function teamCoins(g,s,k){if(!g.team)return g.coins[s];return g.team.sub[s]===k?g.coins[s]:g.team.st[s][k].coins;}
 function totalMoves(g){return g.team?MOVES*2:MOVES;}

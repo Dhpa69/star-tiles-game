@@ -217,3 +217,11 @@ console.log('ui scripts parse ok');
  for(const [lv,n] of [['easy',4],['medium',4],['hard',3],['expert',2],['master',2]])for(let i=0;i<n;i++){const G=L.newGame('ai',null,i%2);G.coins=[1000,1000];play(G,lv);}
  const T=L.newGame('ai',null,0,10);L.teamInit(T,[['a','b'],['c','d']],[[0,1],[1,1]],[[1000,1000],[1000,1000]]);play(T,'master');
  console.log('v66 no repeated power-ups in',games,'full AI games');}
+// v67 deal odds: ~1/24 all-same, ~1/12 exactly-two-same, rest all different; stars unchanged (~8%/tile, max 1 per piece)
+{const a=require('assert');const L=require('./logic.js');let s=12345;const r=()=>(s=(s*16807)%2147483647)/2147483647;const n=12000;let same=0,two=0,diff=0,starT=0;
+ for(let i=0;i<n;i++){const p=L.piece(r,2);a.ok(p.every(Boolean));const st=p.filter(x=>x==='star').length;a.ok(st<=1,'max 1 star');starT+=st;const c=p.filter(x=>x!=='star'),u=new Set(c).size;
+  if(u===1)same++;else if(c.length===3&&u===2)two++;else diff++;}
+ const f=x=>x/n;a.ok(Math.abs(f(same)-1/24)<0.008,'all-same '+f(same));a.ok(Math.abs(f(two)-(1/12)*(1-0.222))<0.012,'two-same '+f(two));a.ok(f(diff)>0.83&&f(diff)<0.91,'different '+f(diff));
+ a.ok(starT/(3*n)>0.06&&starT/(3*n)<0.09,'star tiles '+starT/(3*n));
+ const A=L.newGame('ai',(()=>{let q=7;return ()=>(q=(q*16807)%2147483647)/2147483647;})()),B=L.newGame('ai',(()=>{let q=7;return ()=>(q=(q*16807)%2147483647)/2147483647;})());a.deepEqual(A.racks,B.racks,'seeded deals identical');a.equal(A.dv,2);
+ console.log('v67 deal odds ok: same',(f(same)*100).toFixed(1)+'% two',(f(two)*100).toFixed(1)+'% diff',(f(diff)*100).toFixed(1)+'% star tiles',(starT/(3*n)*100).toFixed(1)+'%');}

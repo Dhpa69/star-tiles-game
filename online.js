@@ -75,7 +75,7 @@ const Online=(function(){
  let pollGap=180000,pollT=null,polling=false,lastPoll=0;
  function applyBg(o,env,d){o.pollTime=Math.max(o.pollTime||0,env.time||0);if(!d||d.from===o.id)return false;o.lastAct=Math.max(o.lastAct||0,(env.time||0)*1000);
   if(d.t==='act'&&typeof d.n==='number'&&d.n===o.log.length){o.log.push(d.a);return true;}
-  if(d.t==='start'&&o.seed==null&&!o.host){o.seed=d.seed;o.names=d.names;o.coins=d.coins;o.rv=d.rv===2?2:1;return true;}
+  if(d.t==='start'&&o.seed==null&&!o.host){o.dv=d.dv===2?2:1;o.seed=d.seed;o.names=d.names;o.coins=d.coins;o.rv=d.rv===2?2:1;return true;}
   if(d.t==='hello'&&o.host&&o.seed==null){o.helloFrom={name:d.name,coins:d.coins};return true;}
   if(d.t==='rematch'&&d.code){o.rematch=d.code;return true;}return false;}
  async function pollAll(h,force){bgH=h;bgSubs();if(MQ.up.length&&!force)return;if(polling)return;clearTimeout(pollT);pollT=setTimeout(()=>pollAll(h),pollGap);
@@ -111,7 +111,7 @@ const Online=(function(){
    st.seen=new Set();listen();send({t:'back',have:st.applied});},
   setGame(seed,names,coins){st.seed=seed;st.names=names;st.coins=coins;persist();},
   rtcStart,rtcClose,
-  start(seed,names,coins,rv){send({t:'start',seed,names,coins,rv:rv||1});},
+  start(seed,names,coins,rv){const m=all();if(m[st.code]&&m[st.code].dv==null&&st.seed==null){m[st.code].dv=2;putAll(m);}const dv=(m[st.code]||{}).dv===2?2:1;send({t:'start',seed,names,coins,rv:rv||1,dv});},
   act(a){const n=st.applied;st.applied++;st.log.push(a);st.lastAct=Date.now();persist();send({t:'act',n,a});},
   record(a){st.applied++;st.log.push(a);persist();},
   resend(from){for(let n=from;n<st.log.length;n++)send({t:'act',n,a:st.log[n]});},
