@@ -67,17 +67,24 @@ document.addEventListener('click',e=>{if(e.target.closest&&(e.target.closest('#c
 
 // ---------- D) ads ----------
 const AD=P('AdMob');let adReady=false,adInit=false,lastAd=0,npa=true;
+// v70: real ids in production; test mode (test ad units + testing flag) when toggled on this device
+const adTest=()=>!!C.admob.testing||localStorage.getItem('startiles.adtest')==='1';
+const unit=k=>adTest()?C.admob.testIds[k]:C.admob[k];
+(function(){const tap=()=>{const v=[...document.querySelectorAll('#overlay small,#overlay .ver,#ver')].find(e=>/^v\d+$/.test((e.textContent||'').trim()));if(!v||v._at)return;v._at=1;let n=0,t=0;v.addEventListener('click',()=>{const now=Date.now();n=now-t<1500?n+1:1;t=now;if(n>=7){n=0;const on=!adTest();localStorage.setItem('startiles.adtest',on?'1':'0');alert('Ad test mode '+(on?'ON (test ads only)':'OFF (live ads)')+'. Restart the app.');}});};setTimeout(tap,1500);})();
+async function consent(){try{const ci=await AD.requestConsentInfo({});if(ci&&ci.isConsentFormAvailable&&ci.status==='REQUIRED')await AD.showConsentForm();}catch(e){console.warn('ump',e);}}
+async function privacyOptions(){try{if(AD)await AD.showPrivacyOptionsForm();}catch(e){say('No privacy options needed');}}
 const adsOk=()=>!!AD&&adInit&&!noAds();
 const rewardLeft=()=>{const r=LS('startiles.rw',{});const d=new Date().toDateString();return Math.max(0,C.admob.rewardPerDay-(r.d===d?r.n:0));};
 async function initAds(){if(!AD||noAds())return;try{
+ await consent();
  let st=await AD.trackingAuthorizationStatus();if(st&&st.status==='notDetermined'){await new Promise(r=>setTimeout(r,1500));st=await AD.requestTrackingAuthorization().then(()=>AD.trackingAuthorizationStatus());}
- npa=!(st&&st.status==='authorized');await AD.initialize({initializeForTesting:!!C.admob.testing});adInit=true;prepInter();}catch(e){console.warn('admob',e);}}
-async function prepInter(){if(!adsOk())return;try{await AD.prepareInterstitial({adId:C.admob.interstitial,isTesting:!!C.admob.testing,npa});adReady=true;}catch(e){adReady=false;}}
+ npa=!(st&&st.status==='authorized');await AD.initialize({initializeForTesting:adTest(),testingDevices:C.admob.testDevices||[]});adInit=true;prepInter();}catch(e){console.warn('admob',e);}}
+async function prepInter(){if(!adsOk())return;try{await AD.prepareInterstitial({adId:unit('interstitial'),isTesting:adTest(),npa});adReady=true;}catch(e){adReady=false;}}
 const idle=()=>{try{return !busy&&!(typeof show!=='undefined'&&show)&&!window.aiThinking;}catch(e){return true;}};
 const whenIdle=(fn,tries=0)=>{if(idle()||tries>40)return fn();setTimeout(()=>whenIdle(fn,tries+1),500);};
 async function showAd(fn){window.StPause&&StPause.pause('call');try{return await fn();}finally{setTimeout(()=>window.StPause&&StPause.resume('settled'),400);}}
 async function interstitial(){if(!adsOk()||!adReady||Date.now()-lastAd<C.admob.minGapSec*1000)return;whenIdle(async()=>{if(!adsOk()||!adReady)return;lastAd=Date.now();adReady=false;try{await showAd(()=>AD.showInterstitial());}catch(e){}setTimeout(prepInter,3000);});}
-async function rewarded(){if(!adsOk()||!rewardLeft())return;shopMsg('Loading ad…');try{await AD.prepareRewardVideoAd({adId:C.admob.rewarded,isTesting:!!C.admob.testing,npa});const r=await showAd(()=>AD.showRewardVideoAd());
+async function rewarded(){if(!adsOk()||!rewardLeft())return;shopMsg('Loading ad…');try{await AD.prepareRewardVideoAd({adId:unit('rewarded'),isTesting:adTest(),npa});const r=await showAd(()=>AD.showRewardVideoAd());
  if(r){const d=new Date().toDateString(),s=LS('startiles.rw',{});SS('startiles.rw',{d,n:(s.d===d?s.n:0)+1});addCoins(C.admob.rewardCoins);say('+'+C.admob.rewardCoins+' 🪙');}shopMsg('');renderShop();}catch(e){shopMsg('No ad available right now');}}
 // interstitial only after a completed game (end panel), never mid-game
 if(typeof showEnd==='function'){const _se=showEnd;window.showEnd=showEnd=function(){_se.apply(this,arguments);setTimeout(interstitial,1600);};}
@@ -117,8 +124,8 @@ document.addEventListener('click',async e=>{const b=e.target.closest&&e.target.c
  if(!gateOn()||!g||g.over)return;const p=humanIdx();if(g.turn!==p)return;if(!idle()&&puUsed(g)[p]>=1&&!(g._adOk&&g._adOk[p])){e.preventDefault();e.stopImmediatePropagation();say('Wait for the replay to finish');return;}const used=puUsed(g)[p];g._adOk=g._adOk||[0,0];if(used<1||g._adOk[p])return;
  e.preventDefault();e.stopImmediatePropagation();
  if(!confirm('Your 1st power-up this game was free.\nWatch a short ad to use another one?\n(Remove Ads / Pro skips this.)'))return;
- say('Loading ad…');try{await AD.prepareRewardVideoAd({adId:C.admob.rewarded,isTesting:!!C.admob.testing,npa});const r=await showAd(()=>AD.showRewardVideoAd());
+ say('Loading ad…');try{await AD.prepareRewardVideoAd({adId:unit('rewarded'),isTesting:adTest(),npa});const r=await showAd(()=>AD.showRewardVideoAd());
   if(r){g._adOk[p]=1;hap('success');b.click();}else say('Ad not finished – power-up not used');}catch(err){say('No ad available right now – try again later');}},true);
 window.StGate={puUsed,gateOn};
-window.StNative={DEV,openShop,noAds,askPush,interstitial};
+window.StNative={DEV,openShop,noAds,askPush,interstitial,privacyOptions,adTest};
 })();

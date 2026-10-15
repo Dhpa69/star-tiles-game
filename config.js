@@ -13,10 +13,13 @@ window.ST_CONFIG={
   {id:'com.dhavalpatel.startiles.coins20000',coins:20000, price:'$19.99'},
   {id:'com.dhavalpatel.startiles.removeads', noAds:true, price:'$2.99', nonConsumable:true, title:'Remove Ads'},
   {id:'com.dhavalpatel.startiles.pro', noAds:true, coins:2000, price:'$4.99', nonConsumable:true, title:'Star Tiles Pro', note:'No ads + 2,000 coins'}],
- admob:{ // Google TEST ids – safe to ship in TestFlight, replace for App Store
-  appId:'ca-app-pub-3940256099942544~1458002511',
-  interstitial:'ca-app-pub-3940256099942544/4411468910',
-  rewarded:'ca-app-pub-3940256099942544/1712485313',
-  testing:true, rewardCoins:25, rewardPerDay:5, minGapSec:120}
+ admob:{ // v70: REAL AdMob ids. Test ads are used when ad-test mode is on (tap the version label on home 7x) or for testDevices.
+  appId:'ca-app-pub-5529465721750627~8202532371',
+  banner:'ca-app-pub-5529465721750627/9838302813', // reserved: the app has no banner placement yet
+  interstitial:'ca-app-pub-5529465721750627/4777547820',
+  rewarded:'ca-app-pub-5529465721750627/5899057806',
+  testIds:{interstitial:'ca-app-pub-3940256099942544/4411468910',rewarded:'ca-app-pub-3940256099942544/1712485313'},
+  testDevices:[], // add your iPhone's AdMob test device id here (Xcode console prints it on first ad request)
+  testing:false, rewardCoins:25, rewardPerDay:5, minGapSec:120}
 };
 window.ST_LAUNCH=location.search; // v53: keep invite params before the room-link handler clears the URL
