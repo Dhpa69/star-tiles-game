@@ -210,5 +210,7 @@ function aiPlan(g,level){useRules(g);level=level||'medium';if(level==='expert')r
 // v23: resign = player p quits; the other player wins (gets the win coins)
 function resign(g,p){if(g.over)return false;g.over=true;g.resigned=p;g.winner=1-p;g.coins[1-p]+=WIN_COINS;if(g.team)g.team.st[1-p][1-g.team.sub[1-p]].coins+=WIN_COINS;return true;}
 const api={puOk,puTypes,puKey,setN,teamInit,seat,teamCoins,totalMoves,get N(){return N;},useRules,evaluate,single,resign,norm,capB,charges,spendCharge,dbl,expertMove,expertPlan,masterMove,masterPlan,pairsValue,previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
+// v66: a plan never asks for a power-up the player may not use (used type / no charges)
+{const _ap=api.aiPlan;api.aiPlan=function(g,l){const m=_ap(g,l);if(m&&m.boost){const B=capB(g,m.boost);m.boost=B.d+B.t?B:false;}if(m&&m.blast&&!puOk(g,m.blast.type))m.blast=null;return m;};}
 if(typeof module!=='undefined')module.exports=api;else root.Logic=api;
 })(this);

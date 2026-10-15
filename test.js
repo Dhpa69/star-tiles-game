@@ -208,3 +208,12 @@ console.log('ui scripts parse ok');
  // AI never picks a used type
  for(let i=0;i<5;i++){const H=L.newGame('ai');H.turn=1;H.puUsed={1:{bomb:1,cross:1,double:1}};const m=L.aiPlan(H,'expert');a.ok(!m.blast,'AI must not blast with used types');const s0=H.coins[1];L.commit(H,m.pl,m.boost);}
  console.log('v64 power-up once-per-type ok');}
+// v66: full AI games at every level (and team) – no power-up type ever used twice by the same player, and plans never ask for one
+{const a=require('assert');const L=require('./logic.js');let games=0;
+ const play=(G,lv)=>{const used={};while(!G.over){const k=G.team?G.turn*2+G.team.sub[G.turn]:G.turn;used[k]=used[k]||{};const m=L.aiPlan(G,lv);
+   if(m.boost){const B=L.norm(m.boost);a.ok(!(B.d&&used[k].double),'plan asked for a 2nd Double');a.ok(!(B.t&&used[k].triple),'plan asked for a 2nd Triple');}
+   if(m.blast){a.ok(!used[k][m.blast.type],'plan asked for a 2nd '+m.blast.type);const r=L.blast(G,m.blast.type,m.blast.r,m.blast.c);if(r)used[k][m.blast.type]=1;}
+   const res=L.commit(G,m.pl,m.boost);if(res.doubles){a.ok(!used[k].double,'2nd Double applied');used[k].double=1;}if(res.triples){a.ok(!used[k].triple,'2nd Triple applied');used[k].triple=1;}}games++;};
+ for(const [lv,n] of [['easy',4],['medium',4],['hard',3],['expert',2],['master',2]])for(let i=0;i<n;i++){const G=L.newGame('ai',null,i%2);G.coins=[1000,1000];play(G,lv);}
+ const T=L.newGame('ai',null,0,10);L.teamInit(T,[['a','b'],['c','d']],[[0,1],[1,1]],[[1000,1000],[1000,1000]]);play(T,'master');
+ console.log('v66 no repeated power-ups in',games,'full AI games');}

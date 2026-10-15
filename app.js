@@ -198,7 +198,7 @@ function openGame(code){const s=Online.saved(code);if(!s)return;if(s.rematch&&s.
  if(s.seed==null){Online.resume(s,{msg:onMsg,status:onlStatus,p2p:onP2P,net:netUpd});$('onl').classList.add('show');$('onlcode').textContent=s.code;onlStatus(s.host?'Share this code. Waiting for a friend to join…':'Joining room…');return;}$('overlay').classList.remove('show');
  if(isOn()&&Online.st.on&&Online.st.code===s.code){render();return;} // still connected: just close the menu
  Online.resume(s,{msg:onMsg,status:onlStatus,p2p:onP2P,net:netUpd});beginOnline(s.seed,s.names,s.coins,s.log,s.rv);updOnl();say((s.over?'Finished game ':'Rejoined room ')+s.code+(s.over?'':' – catching up…'));if(g.over){$('result').innerHTML=(g.winner<0?'Tie game!':NAMES()[g.winner]+' wins!')+'<br>'+g.scores[0]+' – '+g.scores[1];Online.leave();$('overlay').classList.add('show');renderGames();}}
-$('resumeBtn').onclick=()=>{const s=loadSave();if(!s)return;g=Object.assign(s.g,{rng:Math.random,_live:true});if(s.difficulty)profile.difficulty=s.difficulty;
+$('resumeBtn').onclick=()=>{const s=loadSave();if(!s)return;g=Object.assign(s.g,{rng:Math.random,_live:true});if(g.mode==='ai')g.pu1=true; /* v66: no legacy exemption vs computer */if(s.difficulty)profile.difficulty=s.difficulty;
  pieces=(s.pieces||[]).filter(p=>p&&p.tiles);boost=false;busy=false;aim=null;$('overlay').classList.remove('show');sel=firstFree();
  if(g.mode==='ai'&&g.turn===1){pieces=[];next();}else render();say('Game resumed');};
 addEventListener('pagehide',autosave);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')autosave();});
@@ -287,7 +287,7 @@ function bstr(b){if(!b)return '';const n=L.norm(b);const f=Math.pow(2,n.d)*Math.
 function showMove(mv,done){const run=++showRun;lastMove=mv;const nm=NAMES()[mv.who],W=(ms,f)=>setTimeout(()=>{if(run===showRun)f();},ms);
  const pieces3=[];for(let i=0;i<(mv.pl||[]).length;i+=3)pieces3.push(mv.pl.slice(i,i+3));
  const board=mv.pre.map(r=>r.slice());show={board,hl:new Set(),drop:new Set()};render();let t=0;
- const ban=[];if(mv.blast)ban.push(mv.blast.type==='bomb'?'💣 Bomb':'✚ Cross Blast');const bs=bstr(mv.boost);if(bs)ban.push(bs);
+ const ban=[];if(mv.blast)ban.push(mv.blast.type==='bomb'?'💣 Bomb':'✚ Cross Blast');const bs=bstr(mv.res&&mv.res.doubles!=null?{d:mv.res.doubles,t:mv.res.triples||0}:mv.boost); /* v66: show what was actually applied, not what was requested */if(bs)ban.push(bs);
  if(ban.length){W(0,()=>bannerSay(nm+' used '+ban.join(' + ')));t+=900;}
  pieces3.forEach((pc,i)=>{W(t,()=>{show.drop=new Set();pc.forEach(q=>{board[q.r][q.c]=q.color==='star'?{star:true,fresh:true,mult:L.mult(q.r,q.c)}:{color:q.color,fresh:true};show.hl.add(q.r*BN()+q.c);show.drop.add(q.r*BN()+q.c);});SFX.click();render();});t+=700;});
  if(!pieces3.length){W(t,()=>bannerSay(nm+' passed'));t+=900;}
