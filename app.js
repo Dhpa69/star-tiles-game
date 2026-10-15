@@ -369,7 +369,12 @@ const MKEY='startiles.missions';
 function misLoad(){let s=null;try{s=JSON.parse(localStorage.getItem(MKEY));}catch(e){}const n=Missions.ensure(s);if(n!==s)misSave(n);return n;}
 function misSave(s){try{localStorage.setItem(MKEY,JSON.stringify(s));}catch(e){}}
 function misTrack(ev){const s=misLoad(),done=Missions.track(s,ev);misSave(s);done.forEach((m,i)=>setTimeout(()=>{bannerSay('🎯 Mission complete: '+m.txt+' · claim +'+m.coins+' 🪙');SFX.chime(200);},1800*i+200));misBtn();}
-function addCoins(n){profile.coins+=n;if(g&&!isOn()&&!g.over&&g.coins){g.coins[g.mode==='pvp'?0:meIdx()]+=n;autosave();}saveProfile();showProfile();}
+// v62: is the move about to be made by THIS device's human (not an AI, teammate or opponent)?
+function isMyMove(G){G=G||g;if(!G||G!==g)return false;if(G.mode==='pvp'||G.mode==='daily')return true;const me=meIdx();if(G.turn!==me)return false;
+ if(G.team){const k=isOn()?Online.st.me&1:0;return G.team.sub[me]===k&&!(G.team.ai&&G.team.ai[me][k]);}return true;}
+window.isMyMove=isMyMove;
+function addCoins(n){profile.coins+=n;if(g&&!isOn()&&!g.over&&g.coins){const s0=g.mode==='pvp'?0:meIdx();
+  if(g.team&&g.mode!=='pvp'&&g.team.sub[s0]!==0){const p=g.team.st[s0][0];if(p)p.coins+=n;}else g.coins[s0]+=n;autosave();}saveProfile();showProfile();} // v62: team: credit MY seat, never the AI teammate
 function misBtn(){const s=misLoad(),L=Missions.list(s),ready=L.filter(m=>m.done&&!m.claimed).length+(!s.streakClaimed?1:0)+(L.every(m=>m.claimed)&&!s.allClaimed?1:0);const b=$('misBtn');if(b)b.dataset.n=ready?String(ready):'';}
 function misRender(){const s=misLoad(),L=Missions.list(s),el=$('mislist'),allDone=L.every(m=>m.claimed);
  const row=(icon,txt,have,goal,coins,state,id)=>'<div class="mis'+(state==='claimed'?' got':'')+'"><div class="mt"><b>'+icon+' '+esc(txt)+'</b><span>+'+coins+' 🪙</span></div><div class="mbar"><i style="width:'+Math.round(100*have/goal)+'%"></i></div><div class="mf"><small>'+have+' / '+goal+'</small>'+

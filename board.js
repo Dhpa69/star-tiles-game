@@ -19,7 +19,7 @@ const ACH=[
 const got=()=>LS('startiles.ach',{});
 function unlock(id){const a=got();if(a[id])return;a[id]=Date.now();SS('startiles.ach',a);const d=ACH.find(x=>x[0]===id);if(d){say('🏆 Achievement: '+d[1]+' '+d[2]);try{SFX.chime&&SFX.chime(800);}catch(e){}if(window.StGC)StGC.report(id);}achBtn();}
 window.StAch={unlock,list:()=>ACH,got};
-const _c=L.commit;L.commit=function(G,pl,b){const mover=G&&G.turn;const r=_c.apply(this,arguments);try{if(G===g){const me=G.mode==='online'?meIdx():0;if(mover===me||G.mode==='pvp'){if(r.score>=1000)unlock('m1k');if(r.score>=5000)unlock('m5k');if(r.score>=20000)unlock('m20k');if((r.groups||0)>=3)unlock('groups3');if(r.score>0&&pl.filter(t=>t.color==='star').length>=3)unlock('stars');}}}catch(e){}return r;};
+const _c=L.commit;L.commit=function(G,pl,b){const mine=window.isMyMove?isMyMove(G):false;const r=_c.apply(this,arguments);try{if(G===g){if(mine){ /* v62: only my own moves */if(r.score>=1000)unlock('m1k');if(r.score>=5000)unlock('m5k');if(r.score>=20000)unlock('m20k');if((r.groups||0)>=3)unlock('groups3');if(r.score>0&&pl.filter(t=>t.color==='star').length>=3)unlock('stars');}}}catch(e){}return r;};
 const _f=finish;window.finish=finish=function(){const G=g;const r=_f.apply(this,arguments);try{const me=G.mode==='online'?meIdx():0,won=G.winner===me,sc=G.scores[me];unlock('first');
  if(G.mode==='ai'&&won){unlock('win1');const lv=profile.difficulty;if(lv==='hard')unlock('hard');if(lv==='expert'||lv==='master')unlock('expert');if(lv==='master')unlock('master');}
  if((profile.wins|0)>=10)unlock('win10');if(sc>=20000)unlock('g20k');if(sc>=100000)unlock('g100k');
