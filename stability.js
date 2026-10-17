@@ -1,7 +1,7 @@
 // v54: freeze protection – AI in a Web Worker, input-lock watchdog, error recovery
 (function(){
 let W=null,wid=0;const cbs={};
-function worker(){if(W!==null)return W;try{W=new Worker('ai-worker.js?v=70');W.onmessage=e=>{const c=cbs[e.data.id];delete cbs[e.data.id];if(c)c(e.data);};W.onerror=()=>{W=false;Object.keys(cbs).forEach(k=>{const c=cbs[k];delete cbs[k];c({ok:false});});};}catch(e){W=false;}return W;}
+function worker(){if(W!==null)return W;try{W=new Worker('ai-worker.js?v=71');W.onmessage=e=>{const c=cbs[e.data.id];delete cbs[e.data.id];if(c)c(e.data);};W.onerror=()=>{W=false;Object.keys(cbs).forEach(k=>{const c=cbs[k];delete cbs[k];c({ok:false});});};}catch(e){W=false;}return W;}
 function snap(G){const {rng,...rest}=G;return JSON.parse(JSON.stringify(rest));}
 // cb(plan) gets a plan whose blast (if any) is already applied to G, like L.aiPlan
 window.planAI=function(G,level,cb){window.aiThinking=true;const done=m=>{window.aiThinking=false;cb(m);};

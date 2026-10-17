@@ -111,7 +111,7 @@ const Online=(function(){
    st.seen=new Set();listen();send({t:'back',have:st.applied});},
   setGame(seed,names,coins){st.seed=seed;st.names=names;st.coins=coins;persist();},
   rtcStart,rtcClose,
-  start(seed,names,coins,rv){const m=all();if(m[st.code]&&m[st.code].dv==null&&st.seed==null){m[st.code].dv=2;putAll(m);}const dv=(m[st.code]||{}).dv===2?2:1;send({t:'start',seed,names,coins,rv:rv||1,dv});},
+  start(seed,names,coins,rv){const m=all();if(m[st.code]&&m[st.code].dv==null&&st.seed==null){m[st.code].dv=2;putAll(m);}const dv=(m[st.code]||{}).dv===2?2:1;send({t:'start',seed,names,coins,rv:rv||1,dv,pu1:1});},
   act(a){const n=st.applied;st.applied++;st.log.push(a);st.lastAct=Date.now();persist();send({t:'act',n,a});},
   record(a){st.applied++;st.log.push(a);persist();},
   resend(from){for(let n=from;n<st.log.length;n++)send({t:'act',n,a:st.log[n]});},

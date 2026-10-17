@@ -131,7 +131,7 @@ $('tgo').onclick=()=>{if(!aim||aim.r==null)return;if(isOn())Online.act({type:'bl
 function boom(res){setTimeout(autosave,0);blastFx=res.cells;pops=res.pops;SFX.boom();render();burst(res.pops);setTimeout(()=>{blastFx=[];pops=[];render();},550);}
 let blastFx=[];
 $('swap').onclick=()=>{const paid=g.swaps[g.turn]<1;if(!L.canSwap(g)){say('Not enough coins');return;}let s=sel;if(s==null||pieces.some(p=>p.s===s))s=firstFree();if(s==null){say('Select a tray piece to swap');return;}if(isOn())Online.act({type:'swap',s});L.swap(g,s);sel=s;say((paid?'Swapped piece (−50 🪙)':'Free swap used')+' — still your turn');render();autosave();};
-$('play').onclick=()=>{const np=pieces.length,p=g.turn;boost=L.single(boost);if(isOn())Online.act({type:'commit',pl:placed(),boost});const res=L.commit(g,placed(),boost);markOwner(p);pieces=[];boost=false;
+$('play').onclick=()=>{const np=pieces.length,p=g.turn;boost=L.single(boost);const pl0=placed(),b0=boost;const res=L.commit(g,pl0,boost);if(isOn())Online.act({type:'commit',pl:pl0,boost:b0,sc:g.scores.slice()}); /* v71: send AFTER applying, with the authoritative resulting totals */markOwner(p);pieces=[];boost=false;
  if(!res.score)say(np?'No match – need 3!':'Passed');const mev={type:'move',score:res.score,cleared:res.cleared,sizes:res.sizes||[],starGroups:res.starGroups||0};busy=true;render();pop(res,p,()=>{busy=false;if(g.mode!=='pvp')setTimeout(()=>misTrack(mev),res.score>=1000?1400:0);next();});};
 function pop(res,who,done){return scoreShow(res,who==null?g.turn===0&&g.moves[0]>g.moves[1]?0:1-g.turn:who,done);}
 function popOld(res){pops=res.pops||[];popStars=res.stars||[];pops.forEach((q,i)=>SFX.pop(i));if(res.score)setTimeout(()=>SFX.chime(res.score),pops.length*60);else SFX.pass();burst(pops);setTimeout(()=>{pops=[];popStars=null;render();},650);}
@@ -148,9 +148,13 @@ function finish(){endCtx={mode:g.mode,on:isOn()?{code:Online.st.code,id:Online.s
  $('result').innerHTML=(g.resigned!=null?n[g.resigned]+' resigned. ':'')+(w<0?'Tie game!':n[w]+' wins!')+'<br>'+g.scores[0]+' – '+g.scores[1]+'<br>'+(g.mode!=='pvp'&&w===me?'+10 coins! ':'')+'Coins: '+g.coins[me];if(!isOn())profile.coins=g.coins[me];profile.games++;if(w===me)profile.wins++;if(isOn()){const S=Online.st,o=Online.saved(S.code);if(o&&o.counted){profile.games--;if(w===me)profile.wins--;}else profile.coins=Math.max(0,profile.coins+g.coins[me]-(g.coinsStart||g.coins)[me]);$('result').innerHTML=$('result').innerHTML.replace(/Coins: \d+/,'Coins: '+profile.coins);Online.persist({over:true,counted:true,winner:w,scores:g.scores.slice()});Online.leave();renderGames();}saveProfile();showProfile();showEnd();}
 function start(mode){hideEnd();$('result').innerHTML='';const nm=$('pname').value.trim();if(!nm){$('pname').focus();say('Enter your name first');return;}profile.name=nm;saveProfile();clearSave();g=L.newGame(mode,null,Math.random()<.5?1:0);g.coins[0]=profile.coins;pieces=[];boost=false;busy=false;sel=firstFree();g._live=true;$('overlay').classList.remove('show');render();autosave();firstBanner();}
 // ---- online rooms ----
-function applySilent(a){if(a.type==='commit'){const p=g.turn;L.commit(g,a.pl,a.boost);markOwner(p);}else if(a.type==='swap')L.swap(g,a.s);else if(a.type==='blast')L.blast(g,a.b,a.r,a.c);else if(a.type==='resign')L.resign(g,a.p);}
+// v71: the mover's phone is authoritative for the totals after its move. If our replay disagrees, adopt them (and fix the winner).
+function adoptSc(G,a){if(!a||!Array.isArray(a.sc)||a.sc.length!==G.scores.length||a.sc.some(x=>typeof x!=='number'))return false;if(a.sc.every((x,i)=>x===G.scores[i]))return false;
+ console.warn('online score mismatch: local',G.scores,'mover',a.sc);G.scores=a.sc.slice();G.desync=(G.desync|0)+1;
+ if(G.over&&G.resigned==null){const w0=G.winner,w=G.scores[0]===G.scores[1]?-1:(G.scores[0]>G.scores[1]?0:1);if(w!==w0){if(w0>=0&&!G.solo)G.coins[w0]-=L.WIN_COINS;if(w>=0&&!G.solo)G.coins[w]+=L.WIN_COINS;G.winner=w;}}return true;}
+function applySilent(a){if(a.type==='commit'){const p=g.turn;L.commit(g,a.pl,a.boost);adoptSc(g,a);markOwner(p);}else if(a.type==='swap')L.swap(g,a.s);else if(a.type==='blast')L.blast(g,a.b,a.r,a.c);else if(a.type==='resign')L.resign(g,a.p);}
 function remoteAct(a){const p=g.turn;
- if(a.type==='commit'){const pre=g.board.map(r=>r.slice()),res=L.commit(g,a.pl,a.boost);markOwner(p);const bl=lastBlast&&lastBlast.p===p&&lastBlast.k===g.moves[p]-1?lastBlast:null;lastBlast=null;busy=true;render();showMove({who:p,pre,pl:a.pl,boost:a.boost,blast:bl,res},()=>{busy=false;next();});return;}
+ if(a.type==='commit'){const pre=g.board.map(r=>r.slice()),res=L.commit(g,a.pl,a.boost);adoptSc(g,a);markOwner(p);const bl=lastBlast&&lastBlast.p===p&&lastBlast.k===g.moves[p]-1?lastBlast:null;lastBlast=null;busy=true;render();showMove({who:p,pre,pl:a.pl,boost:a.boost,blast:bl,res},()=>{busy=false;next();});return;}
  else if(a.type==='swap'){L.swap(g,a.s);say(NAMES()[p]+' swapped');}
  else if(a.type==='resign'){L.resign(g,a.p);say(NAMES()[a.p]+' resigned – you win!');}
  else if(a.type==='blast'){const res=L.blast(g,a.b,a.r,a.c);if(res){lastBlast={p,k:g.moves[p],type:a.b,cells:res.cells,pops:res.pops};boom(res);say(NAMES()[p]+' used '+(a.b==='bomb'?'💣 Bomb':'✚ Cross Blast'));}render();return;}
@@ -160,7 +164,7 @@ function onMsg(d){const S=Online.st;if(d.t==='chat'){chatIn(d);return;}
  if(window.StTeam&&StTeam.msg(d))return; // v59 team rooms: lobby / hello / start
  if(d.t==='hello'&&S.host&&S.seed!=null&&S.names){Online.start(S.seed,S.names,S.coins,(Online.saved(S.code)||{}).rv||1);} // v24: joiner didn't get start yet -> resend
  else if(d.t==='hello'&&S.host&&S.seed==null){const seed=newSeed();const names=[profile.name,d.name],coins=[profile.coins,+d.coins||100];Online.start(seed,names,coins,2);if(busyElsewhere()){bgStart(seed,names,coins,2,d.name);return;}beginOnline(seed,names,coins,[],2);}
- else if(d.t==='start'&&!S.host&&S.seed==null){Online.persist({dv:d.dv===2?2:1});if(busyElsewhere()){bgStart(d.seed,d.names,d.coins,d.rv,(d.names||[])[0]);return;}beginOnline(d.seed,d.names,d.coins,[],d.rv);}
+ else if(d.t==='start'&&!S.host&&S.seed==null){Online.persist({dv:d.dv===2?2:1,pu1:d.pu1===0?false:true});if(busyElsewhere()){bgStart(d.seed,d.names,d.coins,d.rv,(d.names||[])[0]);return;}beginOnline(d.seed,d.names,d.coins,[],d.rv);}
  else if(d.t==='act'){if(d.n<S.applied||!isOn())return;if(!pending.some(x=>x.n===d.n))pending.push(d);pending.sort((x,y)=>x.n-y.n);
   while(pending.length&&pending[0].n<S.applied)pending.shift();
   while(pending.length&&pending[0].n===S.applied){const x=pending.shift();Online.record(x.a);remoteAct(x.a);}
@@ -175,7 +179,7 @@ function updOnl(){const el=$('ostat');if(!isOn()||g.over){el.className='';return
 setInterval(()=>{if(isOn()&&!g.over){if(document.visibilityState==='visible')Online.ping();updOnl();}},90000); // v25: keepalive 90s
 setInterval(()=>{if(isOn())updOnl();},5000);
 document.addEventListener('visibilitychange',()=>{if(!isOn())return;if(document.visibilityState==='visible'){Online.ping('back');}else Online.ping('away');});
-function beginOnline(seed,names,coins,log,rv){hideEnd();pending.length=0;stopWait();lastMove=null;g=L.newGame('pvp',Online.mulberry(seed),firstOf(seed),names&&names.length===4?10:8,(Online.saved(Online.st.code)||{}).dv===2?2:1); /* v67: new deal only when the room was started with it */g.rv=rv===2?2:1;Online.persist({rv:g.rv});g.mode='online';g.names=names;g.coins=coins.slice();g.coinsStart=coins.slice();g.started=true;Online.setGame(seed,names,coins);if(window.StTeam)StTeam.hook(g,names,coins);{const o=Online.saved(Online.st.code)||{};g.pu1=!!o.pu1||!(log||[]).length;if(g.pu1&&!o.pu1)Online.persist({pu1:true});} /* v64 rule only for games started on v64+ */(log||[]).forEach(applySilent);setTimeout(()=>catchUpShow(seed,coins,log||[]),400);if(!(log||[]).length)setTimeout(firstBanner,300);
+function beginOnline(seed,names,coins,log,rv){hideEnd();pending.length=0;stopWait();lastMove=null;g=L.newGame('pvp',Online.mulberry(seed),firstOf(seed),names&&names.length===4?10:8,(Online.saved(Online.st.code)||{}).dv===2?2:1); /* v67: new deal only when the room was started with it */g.rv=rv===2?2:1;Online.persist({rv:g.rv});g.mode='online';g.names=names;g.coins=coins.slice();g.coinsStart=coins.slice();g.started=true;Online.setGame(seed,names,coins);if(window.StTeam)StTeam.hook(g,names,coins);{const o=Online.saved(Online.st.code)||{};g.pu1=o.pu1!==false&&o.pu1!==0;if(g.pu1&&!o.pu1)Online.persist({pu1:true});} /* v71: once-per-type is the room rule; only rooms explicitly marked legacy (pu1:false) keep old stacking */ /* v64 rule only for games started on v64+ */(log||[]).forEach(applySilent);setTimeout(()=>catchUpShow(seed,coins,log||[]),400);if(!(log||[]).length)setTimeout(firstBanner,300);
  pieces=[];boost=false;busy=false;sel=firstFree();$('overlay').classList.remove('show');$('onl').classList.remove('show');render();updOnl();say(g.turn===meIdx()?'Your turn!':'Waiting for '+NAMES()[g.turn]+'…');}
 const onlStatus=t=>{if(waitT){onlErr(t);return;}$('onlmsg').textContent=t;if(isOn()&&t){$('ostat').textContent='⚠ '+t;$('ostat').className='show away';}else if(isOn())updOnl();};
 $('hostBtn').onclick=()=>{const nm=$('pname').value.trim();if(!nm){$('pname').focus();say('Enter your name first');return;}profile.name=nm;saveProfile();
@@ -217,7 +221,7 @@ g=L.newGame('ai');g.coins[0]=profile.coins;render();showProfile();showResume();$
 // ---- v22: My online games (many rooms at once, Words-With-Friends style) ----
 var gcache;
 function replayGame(o){gcache=gcache||{};if(o.seed==null)return null;const k=o.code+':'+o.seed+':'+(o.log||[]).length;if(gcache[o.code]&&gcache[o.code].k===k)return gcache[o.code].G;
- const G=L.newGame('pvp',Online.mulberry(o.seed),firstOf(o.seed),o.team?10:8,o.dv===2?2:1);G.rv=o.rv===2?2:1;G.pu1=!!o.pu1;G.coins=(o.coins||[100,100]).slice();if(o.team&&window.StTeam)StTeam.hook(G,o.names,o.coins,o.me);for(const a of o.log||[]){try{if(a.type==='commit')L.commit(G,a.pl,a.boost);else if(a.type==='swap')L.swap(G,a.s);else if(a.type==='blast')L.blast(G,a.b,a.r,a.c);else if(a.type==='resign')L.resign(G,a.p);}catch(e){}}
+ const G=L.newGame('pvp',Online.mulberry(o.seed),firstOf(o.seed),o.team?10:8,o.dv===2?2:1);G.rv=o.rv===2?2:1;G.pu1=o.pu1!==false&&o.pu1!==0;G.coins=(o.coins||[100,100]).slice();if(o.team&&window.StTeam)StTeam.hook(G,o.names,o.coins,o.me);for(const a of o.log||[]){try{if(a.type==='commit'){L.commit(G,a.pl,a.boost);adoptSc(G,a);}else if(a.type==='swap')L.swap(G,a.s);else if(a.type==='blast')L.blast(G,a.b,a.r,a.c);else if(a.type==='resign')L.resign(G,a.p);}catch(e){}}
  gcache[o.code]={k,G};return G;}
 function ago(t){if(!t)return '';const s=(Date.now()-t)/1000;return s<60?'just now':s<3600?Math.floor(s/60)+'m ago':s<86400?Math.floor(s/3600)+'h ago':Math.floor(s/86400)+'d ago';}
 function gameRows(){const m=Online.all(),rows=[];for(const code in m){const o=m[code],G=replayGame(o),me=o.team?(o.me|0)>>1:o.me|0;
@@ -297,7 +301,7 @@ function bannerSay(t){say(t);clearTimeout(say.t);say.t=setTimeout(()=>toast.styl
 function updReplay(){const b=$('replayBtn');if(b)b.style.visibility=lastMove&&!busy&&g&&!g.over?'visible':'hidden';}
 $('replayBtn').onclick=()=>{if(!lastMove||busy)return;busy=true;render();const cur=g.board;showMove(lastMove,()=>{busy=false;render();updReplay();});};
 function catchUpShow(seed,coins,log){if(!isOn()||!log.length||g.team)return;const k=log.length-1,last=log[k];if(last.type!=='commit')return;
- const G=L.newGame('pvp',Online.mulberry(seed),firstOf(seed),BN(),g.dv);G.rv=g.rv;G.pu1=g.pu1;G.coins=coins.slice();let who=0;for(let i=0;i<k;i++){const a=log[i];if(a.type==='commit')L.commit(G,a.pl,a.boost);else if(a.type==='swap')L.swap(G,a.s);else if(a.type==='blast')L.blast(G,a.b,a.r,a.c);else if(a.type==='resign')L.resign(G,a.p);}
+ const G=L.newGame('pvp',Online.mulberry(seed),firstOf(seed),BN(),g.dv);G.rv=g.rv;G.pu1=g.pu1;G.coins=coins.slice();let who=0;for(let i=0;i<k;i++){const a=log[i];if(a.type==='commit'){L.commit(G,a.pl,a.boost);adoptSc(G,a);}else if(a.type==='swap')L.swap(G,a.s);else if(a.type==='blast')L.blast(G,a.b,a.r,a.c);else if(a.type==='resign')L.resign(G,a.p);}
  who=G.turn;if(who===meIdx())return;const pre=G.board.map(r=>r.slice()),res=L.commit(G,last.pl,last.boost);busy=true;render();showMove({who,pre,pl:last.pl,boost:last.boost,blast:null,res},()=>{busy=false;render();updReplay();});}
 
 // ---- v29: copy / share the room code; ?room=XXXXXX opens straight to join ----
@@ -530,7 +534,7 @@ function plainPop(tot){if(!tot||tot==='+0')return;let L=$('celeb');if(!L){L=docu
 
 // v56: a friend joining a waiting room must not replace the game you're playing right now
 function busyElsewhere(){try{return !!(g&&g._live&&!g.over&&g.mode!=='online'&&!$('overlay').classList.contains('show')&&!$('onl').classList.contains('show'));}catch(e){return false;}}
-function bgStart(seed,names,coins,rv,who){try{Online.setGame(seed,names,coins);Online.persist({rv:rv===2?2:1});}catch(e){}renderGames();bannerSay('🌐 '+(who||'Your friend')+' joined room '+Online.st.code+' – open it from Home › My online games');}
+function bgStart(seed,names,coins,rv,who){try{Online.setGame(seed,names,coins);Online.persist({rv:rv===2?2:1,pu1:true});}catch(e){}renderGames();bannerSay('🌐 '+(who||'Your friend')+' joined room '+Online.st.code+' – open it from Home › My online games');}
 // v63: sequence move replays – the next player's (AI / teammate / online opponent) replay waits until the previous
 // move's score display, floating numbers, tile pops and celebration have fully cleared. Moves queue in order.
 // The AI still plans meanwhile (only the visual replay waits). Polling uses setTimeout, so the ad pause also holds it.
