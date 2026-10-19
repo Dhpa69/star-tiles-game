@@ -269,6 +269,7 @@ function onlErr(t){const e=$('onlerr');if(e)e.textContent=t||'';}
 function startWait(){stopWait();waitStart=Date.now();onlErr('');
  waitT=setInterval(()=>{const S=Online.st;if(!S.on||S.seed!=null){stopWait();return;}const sec=Math.round((Date.now()-waitStart)/1000),net=Online.netInfo().startsWith('live ✓')||S.sseOk||(S.netOk&&Date.now()-S.netOk<30000);
   const live=Online.netInfo().startsWith('live ✓'),conn=live?'✓ Connected (live)':net?'✓ Connected (fallback relay)':'… connecting';$('onldbg').textContent=Online.netInfo();
+  if(!S.host&&S.tlobby&&window.StTeam){if(sec%10===0&&sec>0)Online.send({t:'hello',name:profile.name,coins:profile.coins,team:1});$('onlmsg').style.whiteSpace='pre-line';$('onlmsg').textContent=conn+'\n'+StTeam.lobbyText();return;} // v72: team lobby – waiting for 4 is normal, no timeout
   if(!S.host){if(sec%10===0&&sec>0)Online.send({t:'hello',name:profile.name,coins:profile.coins});$('onlmsg').textContent=conn+' · asking host to start ('+sec+'s)';}
   else $('onlmsg').textContent=conn+' · waiting for a friend to join ('+sec+'s). Share the code.';
   const lim=S.host?180:45;if(sec>=lim){$('onlRetry').style.display='block';onlErr(S.host?'No one has joined yet. Check your friend typed the code, then tap Retry.':(net?'The host isn\u2019t answering. Make sure the host has this room open, check the code, then Retry.':'Can\u2019t reach the relay (ntfy.sh). Check your internet, then Retry.'));}},1000);}
@@ -305,7 +306,9 @@ function catchUpShow(seed,coins,log){if(!isOn()||!log.length||g.team)return;cons
  who=G.turn;if(who===meIdx())return;const pre=G.board.map(r=>r.slice()),res=L.commit(G,last.pl,last.boost);busy=true;render();showMove({who,pre,pl:last.pl,boost:last.boost,blast:null,res},()=>{busy=false;render();updReplay();});}
 
 // ---- v29: copy / share the room code; ?room=XXXXXX opens straight to join ----
-function roomLink(c){return location.origin+location.pathname+'?room='+c;}
+// v72: in the iOS app location.origin is capacitor://localhost – shared links must always point at the public site; team rooms carry &team=1
+const ST_SITE='https://dhpa69.github.io/star-tiles-game/';
+function roomLink(c){const base=/^https?:$/.test(location.protocol)&&!/^(localhost|127\.)/.test(location.hostname)?location.origin+location.pathname:ST_SITE;return base+'?room='+c+(Online.st&&Online.st.team?'&team=1':'');}
 function copyText(t){if(navigator.clipboard&&window.isSecureContext)return navigator.clipboard.writeText(t);
  return new Promise((ok,no)=>{const ta=document.createElement('textarea');ta.value=t;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;top:0;left:0;opacity:0;font-size:16px';document.body.appendChild(ta);
   ta.dataset.allowFocus='1';ta.focus();ta.select();ta.setSelectionRange(0,t.length);let r=false;try{r=document.execCommand('copy');}catch(e){}ta.remove();r?ok():no();});}
@@ -315,7 +318,7 @@ $('shareCode').onclick=()=>{const c=$('onlcode').textContent.trim();if(!/^[A-Z0-
  if(navigator.share)navigator.share({title:'Star Tiles',text,url}).catch(()=>{});else copyText(text+' '+url).then(()=>flash($('shareCode'),'✓ Link copied!'),()=>window.prompt('Share this link:',url));};
 (function(){const m=/[?&]room=([A-Za-z0-9 -]{4,14})/.exec(location.search);if(!m)return;const code=Online.clean(decodeURIComponent(m[1]));if(code.length!==6)return;
  try{history.replaceState(null,'',location.pathname);}catch(e){}$('joinCode').value=code;
- const go=()=>{const nm=$('pname').value.trim();if(!nm){$('pname').classList.add('needname');say('Enter your name, then tap Join');$('joinCode').scrollIntoView({block:'center'});return;}profile.name=nm;saveProfile();joinRoom(code);startWait();};
+ const go=()=>{const nm=$('pname').value.trim();if(!nm){$('pname').classList.add('needname');say('Enter your name, then tap Join');$('joinCode').scrollIntoView({block:'center'});return;}profile.name=nm;saveProfile();if(/[?&]team=1/.test(window.ST_LAUNCH||location.search)&&window.StTeam)StTeam.joinTeam(code,null);else joinRoom(code);startWait();};
  setTimeout(go,300);})();
 
 // ---- v32: chat (online games only). Rides the same transport, stored per game, never touches game state ----

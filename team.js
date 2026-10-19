@@ -28,7 +28,7 @@ function go(){const st=S();if(st.seed!=null||lobby.length!==4)return;const A=lob
 function onStart(d){const st=S();if(st.host||st.seed!=null)return;const i=d.team.indexOf(st.id);if(i<0){showLobby('This team room is full.');return;}
  st.me=i;st.team=true;Online.persist({tstart:d,dv:d.dv===2?2:1});beginOnline(d.seed,d.names,d.coins,[],2);bannerSay('👥 You are '+d.names[i]+' on Team '+AB(i>>1)+' · teammate: '+d.names[i^1]);}
 function msg(d){const st=S();
- if(d.t==='lobby'){if(!st.host&&st.seed==null){if(d.full&&d.to===st.id)showLobby('This team room is full.');else if(d.seats){lobby=d.seats;showLobby(lobbyText());}}return true;}
+ if(d.t==='lobby'){if(!st.host&&st.seed==null){if(d.full&&d.to===st.id)showLobby('This team room is full.');else if(d.seats){lobby=d.seats;st.tlobby=Date.now();$('onlRetry').style.display='none';onlErr('');showLobby(lobbyText());}}return true;}
  if(d.t==='hello'&&st.host&&st.team){onHello(d);return true;}
  if(d.t==='start'&&d.team){onStart(d);return true;}
  if(d.t==='start'&&st.team&&st.host)return true;
@@ -40,9 +40,9 @@ function hostTeam(side){const nm=need();if(!nm)return;close();lobby=[];tstart=nu
 function joinTeam(code,pref){const nm=need();if(!nm)return;code=Online.clean(code);if(code.length!==6){say('Room codes have 6 letters/numbers');return;}close();myPref=pref;
  joinRoom(code);setTimeout(()=>Online.send({t:'hello',name:nm,coins:profile.coins,team:1,pref}),400);showLobby('Joining team room…');}
 // rematch: a host that just finished a team game makes the new room a team room too; joiners keep their side
-const _h=Online.host;Online.host=function(){const was=g&&g.team&&g.mode==='online'&&g.over,side=was?meIdx():0,r=_h.apply(this,arguments);
+const _h=Online.host;Online.host=function(){S().tlobby=0;const was=g&&g.team&&g.mode==='online'&&g.over,side=was?meIdx():0,r=_h.apply(this,arguments);
  if(was){S().team=true;lobby=[{id:S().id,name:profile.name,coins:profile.coins,side}];tstart=null;Online.persist();}return r;};
-const _j=Online.join;Online.join=function(code,name,coins){const was=g&&g.team&&g.mode==='online'&&g.over,side=was?meIdx():null,r=_j.apply(this,arguments);
+const _j=Online.join;Online.join=function(code,name,coins){S().tlobby=0;const was=g&&g.team&&g.mode==='online'&&g.over,side=was?meIdx():null,r=_j.apply(this,arguments);
  if(was)setTimeout(()=>Online.send({t:'hello',name,coins,team:1,pref:side}),400);return r;};
 // ---------- local modes ----------
 function startLocal(kind,names){hideEnd();$('result').innerHTML='';clearSave();const first=Math.random()<.5?1:0;
@@ -76,6 +76,6 @@ function open(){const nm=$('pname').value.trim()||profile.name||'You';if(!P){P=d
  P.querySelector('#tHA').onclick=()=>hostTeam(0);P.querySelector('#tHB').onclick=()=>hostTeam(1);
  P.querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>joinTeam(P.querySelector('#tcode').value,b.dataset.j===''?null:+b.dataset.j));
  P.querySelector('#tX').onclick=close;P.classList.add('show');}
-window.StTeam={hook,cur,msg,notifyInfo,open,startLocal,hostTeam,joinTeam,get lobby(){return lobby;}};
+window.StTeam={lobbyText,hook,cur,msg,notifyInfo,open,startLocal,hostTeam,joinTeam,get lobby(){return lobby;}};
 // home button sits in the compact icon grid (added by home.js)
 })();
