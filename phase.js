@@ -27,7 +27,7 @@ function banner(p){const f=INFO[p];if(!f)return;let t=f[1],s=f[2];
  const n=STEPS.findIndex(x=>x[0]===(p==='aim'?'place':p))+1;
  ban.innerHTML='<div class="phin"><span class="phic">'+f[0]+'</span><div><small>'+(n?'Step '+n+' · Move '+moveNo()+'/10':'')+'</small><b>'+esc(t)+'</b>'+(s?'<em>'+esc(s)+'</em>':'')+'</div></div>';
  const bd=$('board').getBoundingClientRect();ban.style.top=Math.max(8,bd.top+bd.height*0.32)+'px';
- ban.classList.remove('show');void ban.offsetWidth;ban.classList.add('show');clearTimeout(hideT);hideT=setTimeout(hide,RM()?1300:1100);}
+ ban.classList.remove('show');void ban.offsetWidth;ban.classList.add('show');clearTimeout(hideT);hideT=setTimeout(hide,2000);}
 function tick(){const p=phase();if(!p){if(last){document.body.className=document.body.className.replace(/\bph-\w+/g,'').trim();last='';lastKey='';if(ban)hide();}if(bar)bar.style.display='none';return;}
  ensure();bar.style.display='';const k=p+'|'+g.turn+'|'+(g.team?g.team.sub[g.turn]:'')+'|'+moveNo();
  if(p!==last){document.body.className=document.body.className.replace(/\bph-\w+/g,'').trim();document.body.classList.add('ph-'+p);
@@ -35,7 +35,7 @@ function tick(){const p=phase();if(!p){if(last){document.body.className=document
   bar.classList.toggle('over',p==='end');}
  // banner only on a real phase change: not for recall (play→place) or aim→place within the same move, not for game over (end screen handles it)
  const quiet=(last==='play'&&p==='place'||last==='aim'&&p==='place'||last==='place'&&p==='aim'&&false)&&k.split('|').slice(1).join()===lastKey.split('|').slice(1).join();
- if(k!==lastKey&&!quiet&&p!=='end')banner(p);
+ if(k!==lastKey&&!quiet&&p==='place')banner(p); // v74: only the start-of-turn banner
  last=p;lastKey=k;}
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const _r=render;window.render=render=function(){const r=_r.apply(this,arguments);try{tick();}catch(e){}return r;};
