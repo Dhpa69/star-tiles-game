@@ -208,9 +208,21 @@ $('resumeBtn').onclick=()=>{const s=loadSave();if(!s)return;g=Object.assign(s.g,
 addEventListener('pagehide',autosave);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')autosave();});
 $('vsAI').onclick=()=>start('ai');$('vsP').onclick=()=>start('pvp');$('menuBtn').onclick=()=>{autosave();showResume();$('overlay').classList.add('show');};
 
-// v67.1: stable chrome reserve (no live child measuring) so the board never resizes while pieces move
-function fit(){const bd=$('board'),app=$('app');if(!bd||!app)return;const w=app.clientWidth,h=app.clientHeight||innerHeight,chrome=innerWidth>innerHeight?200:280;
- const side=Math.round(Math.max(120,Math.min(w,h-chrome,900)));if(bd._side!==side){bd._side=side;bd.style.width=side+'px';}}
+// v67.2: size board from real chrome, but keep tray reserve stable so placing pieces doesn't resize the board
+function fit(){const bd=$('board'),appEl=$('app');if(!bd||!appEl)return;
+ const w=appEl.clientWidth,h=appEl.clientHeight||innerHeight;
+ const skip={overlay:1,pmenu:1,tbar:1,endp:1,account:1,shop:1,missions:1,chat:1,onl:1,shareP:1,teamP:1,prev:1};
+ let used=0;
+ for(const c of appEl.children){if(c===bd||(c.id&&skip[c.id]))continue;
+  const cs=getComputedStyle(c);if(cs.position==='fixed'||cs.position==='absolute'||cs.display==='none')continue;
+  let ch=c.getBoundingClientRect().height;
+  if(c.id==='rack'){ // always reserve a full 3-tall piece tray even when tiles are on the board
+   let tv=parseFloat(getComputedStyle(appEl).getPropertyValue('--t'))||34;const rt=c.querySelector('.rt');if(rt){const t=parseFloat(getComputedStyle(rt).getPropertyValue('--t'));tv=t||rt.getBoundingClientRect().height||tv;}
+   ch=Math.max(ch,tv*3+40);}
+  used+=ch;}
+ const pad=parseFloat(getComputedStyle(appEl).paddingTop)||0;
+ const side=Math.round(Math.max(120,Math.min(w,h-pad-used-6,900)));
+ if(bd._side!==side){bd._side=side;bd.style.width=side+'px';}}
 addEventListener('resize',fit);
 function showProfile(){$('muteBtn').textContent=profile.muted?'🔇 Sound: OFF':'🔊 Sound: ON';$('pname').value=profile.name;$('pstat').textContent='🪙 '+profile.coins+' coins · '+profile.wins+' wins / '+profile.games+' games';
  document.querySelectorAll('#diff button').forEach(b=>b.classList.toggle('on',b.dataset.d===profile.difficulty));}

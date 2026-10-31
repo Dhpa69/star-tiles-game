@@ -535,16 +535,18 @@ body.adpause *,body.adpause *::before,body.adpause *::after{animation-play-state
 /* v64 used power-ups */
 #pmenu .used{opacity:.4;filter:grayscale(1);position:relative}#pmenu .usedtag{position:absolute;right:10px;top:8px;font-size:11px;background:#555;color:#fff;padding:2px 7px;border-radius:999px}
 /* v67: iPhone Duo / wide windows — use available width instead of a fixed 480px phone column */
-#app{max-width:min(100vw,900px);width:100%}
-.rt{--t:min(34px,calc((min(100vw,480px) - 70px)/9.6))}
+#app{max-width:min(100vw,900px);width:100%;--t:min(34px,calc((min(100vw,480px) - 70px)/9.6))}
+.rt{--t:inherit}
 @media (min-width:600px){
- .rt{--t:clamp(34px,calc((min(100vw,900px) - 70px)/12),60px)}.set .rt{--t:clamp(30px,calc(min(100vw,900px)/16),56px)}
+ #app{--t:clamp(34px,calc((min(100vw,900px) - 70px)/12),60px)}
+ .set .rt{--t:clamp(30px,calc(min(100vw,900px)/16),56px)}
  .sq{width:64px;height:50px}
  footer .btn{height:64px;font-size:14px}
  .names{font-size:16px}.scores{font-size:26px}
  #overlay>.card,.pcard,.tutc,.endc,#teamP .tcard{transform:scale(1.15);transform-origin:top center;margin-bottom:8%}
  .chcard,#shareP .shc{max-width:640px}
  .cell{font-size:clamp(14px,3.6vmin,34px)}.star span{font-size:min(44px,6vmin)}
+ #rack{min-height:calc(var(--t)*3 + 40px)}
 }
 
 /* v67.1: landscape / wide-short windows — let the board use the height, tighter chrome */
@@ -552,3 +554,6 @@ body.adpause *,body.adpause *::before,body.adpause *::after{animation-play-state
  #app{max-width:min(100vw,900px,calc(100dvh + 200px))}
  footer .btn{height:54px}
 }
+/* v67.2: keep footer + tray on-screen; board must shrink to fit */
+footer{flex-shrink:0}
+#rack{flex-shrink:0}
