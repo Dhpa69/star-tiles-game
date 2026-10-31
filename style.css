@@ -546,3 +546,9 @@ body.adpause *,body.adpause *::before,body.adpause *::after{animation-play-state
  .chcard,#shareP .shc{max-width:640px}
  .cell{font-size:clamp(14px,3.6vmin,34px)}.star span{font-size:min(44px,6vmin)}
 }
+
+/* v67.1: landscape / wide-short windows — let the board use the height, tighter chrome */
+@media (orientation: landscape) and (min-width:600px){
+ #app{max-width:min(100vw,900px,calc(100dvh + 200px))}
+ footer .btn{height:54px}
+}

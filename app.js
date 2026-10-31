@@ -208,8 +208,9 @@ $('resumeBtn').onclick=()=>{const s=loadSave();if(!s)return;g=Object.assign(s.g,
 addEventListener('pagehide',autosave);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')autosave();});
 $('vsAI').onclick=()=>start('ai');$('vsP').onclick=()=>start('pvp');$('menuBtn').onclick=()=>{autosave();showResume();$('overlay').classList.add('show');};
 
-function fit(){const bd=$('board'),app=$('app');let used=0;[...app.children].forEach(c=>{if(c!==bd&&c.id!=='overlay')used+=c.getBoundingClientRect().height;});
- const st=getComputedStyle(app),avail=app.clientHeight-parseFloat(st.paddingTop)-used-4;bd.style.width=Math.max(120,Math.min(app.clientWidth,avail))+'px';}
+// v67.1: stable chrome reserve (no live child measuring) so the board never resizes while pieces move
+function fit(){const bd=$('board'),app=$('app');if(!bd||!app)return;const w=app.clientWidth,h=app.clientHeight||innerHeight,chrome=innerWidth>innerHeight?200:280;
+ const side=Math.round(Math.max(120,Math.min(w,h-chrome,900)));if(bd._side!==side){bd._side=side;bd.style.width=side+'px';}}
 addEventListener('resize',fit);
 function showProfile(){$('muteBtn').textContent=profile.muted?'🔇 Sound: OFF':'🔊 Sound: ON';$('pname').value=profile.name;$('pstat').textContent='🪙 '+profile.coins+' coins · '+profile.wins+' wins / '+profile.games+' games';
  document.querySelectorAll('#diff button').forEach(b=>b.classList.toggle('on',b.dataset.d===profile.difficulty));}
@@ -552,5 +553,4 @@ function bgStart(seed,names,coins,rv,who){try{Online.setGame(seed,names,coins);O
 // v67: reflow on window size changes (iPhone Duo fold/unfold, orientation, keyboard)
 (function(){let raf=0;const re=()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{try{fit();}catch(e){}requestAnimationFrame(()=>{try{fit();}catch(e){}});});};
  if(window.visualViewport)visualViewport.addEventListener('resize',re);addEventListener('orientationchange',()=>setTimeout(re,250));
- if(window.ResizeObserver){try{new ResizeObserver(re).observe(document.documentElement);}catch(e){}}
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')re();});re();})();
