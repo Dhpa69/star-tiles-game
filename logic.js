@@ -7,12 +7,13 @@ function setN(b){if(b&&b.length)N=b.length;}
 function rnd(rng){return rng()<0.08?'star':COLORS[Math.floor(rng()*COLORS.length)];}
 function rndColor(rng){return COLORS[Math.floor(rng()*COLORS.length)];}
 // v67 deal (g.dv=2): stars as before (~8% per tile, max 1 per piece); the colored tiles are
-// all the same color 1/24, exactly two the same 1/12 (3 colored tiles only), otherwise all different.
-// With a star the 2 colored tiles match 1/24 (star is wild, so that's effectively 3 of a kind), else differ.
+// all the same color 1/24, exactly two the same 1/6 (3 colored tiles), otherwise all different.
+// With a star the 2 colored tiles match 1/6 total (incl. the 1/24 all-same branch), else differ.
 function piece2(rng){const t=[0,1,2].map(()=>null);let st=false;for(let i=0;i<3;i++)if(!st&&rng()<0.08){t[i]='star';st=true;}
  const idx=[0,1,2].filter(i=>!t[i]),u=rng(),pick=ex=>{const c=COLORS.filter(x=>!ex.includes(x));return c[Math.floor(rng()*c.length)];};
  let cols;if(u<1/24){const c=pick([]);cols=idx.map(()=>c);}
- else if(idx.length===3&&u<1/24+1/12){const a=pick([]),b=pick([a]),odd=Math.floor(rng()*3);cols=[0,1,2].map(i=>i===odd?b:a);}
+ else if(idx.length===2&&u<1/6){const c=pick([]);cols=[c,c];}
+ else if(idx.length===3&&u<1/24+1/6){const a=pick([]),b=pick([a]),odd=Math.floor(rng()*3);cols=[0,1,2].map(i=>i===odd?b:a);}
  else{const used=[];cols=idx.map(()=>{const c=pick(used);used.push(c);return c;});}
  idx.forEach((i,k)=>t[i]=cols[k]);return t;}
 function piece(rng,v){if(v===2)return piece2(rng);let st=false;return [0,1,2].map(()=>{let t=rnd(rng);if(t==='star'){if(st)t=rndColor(rng);st=true;}return t;});} // max 1 star per piece
