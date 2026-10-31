@@ -232,7 +232,7 @@ function smartBlast(g,o){if(!canPower(g)||!g.power||g.power[g.turn]<1)return nul
  const cand=[];for(const type of types)for(let r=0;r<N;r++)for(let c=0;c<N;c++){let n=0,st=0;for(const [y,x] of blastCells(type,r,c)){const t=g.board[y][x];if(t){if(t.star)st++;else n++;}}const v=n-st*3;if(v>=(o.minN||4))cand.push({type,r,c,v});}
  if(!cand.length)return null;cand.sort((a,b)=>b.v-a.v);const q={beam:o.beam||10,maxPieces:2,ms:o.ms||80};const base=o.base!=null?o.base:aiMove(g,q).score;let best=null;
  for(const k of cand.slice(0,o.top||4)){const G2=Object.assign({},g,{board:g.board.map(r=>r.slice())});for(const [y,x] of blastCells(k.type,k.r,k.c))G2.board[y][x]=null;const s=aiMove(G2,q).score+k.v*15+(countFits(G2)-fits)*5;if(!best||s>best.s)best={...k,s};}
- if(!best||best.s<base*(o.gain||1.3)+(o.add||100))return null;return {type:best.type,r:best.r,c:best.c,...blast(g,best.type,best.r,best.c)};}
+ if(!best||best.s<base*(o.gain||1.1)+(o.add||40))return null;return {type:best.type,r:best.r,c:best.c,...blast(g,best.type,best.r,best.c)};}
 function ladderPlan(g,level){useRules(g);const rng=g.rng||Math.random;const rec=(m,boost,bl,swap)=>({blast:bl||null,pl:m.pl,boost,swap:swap||false,swapS:swap?swap.s:undefined});
  if(level==='medium'){const bl=bestBlast(g,3)||((rng()<0.5)?smartBlast(g,{minN:5,fits:20,top:3}):null);const m=aiMove(g,{beam:8,maxPieces:2,ms:250});let pl=m;if(rng()<0.3){const alt=aiMove(g,{beam:3,maxPieces:1,ms:120});if(alt.pl.length)pl=alt;}
   return rec(pl,!bl&&pl.score>=800&&puOk(g,'double')&&charges(g)>0?{d:1,t:0}:false,bl);}
