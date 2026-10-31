@@ -549,3 +549,8 @@ function bgStart(seed,names,coins,rv,who){try{Online.setGame(seed,names,coins);O
   window.replayActive=(window.replayActive||0)+1;
   chain=chain.then(()=>new Promise(res0=>{const res=()=>{window.replayActive=Math.max(0,window.replayActive-1);res0();};waitClear(()=>{busy=true;let fin=false;const t1=Date.now();const end=()=>{if(fin)return;fin=true;res();done&&done();};try{_sm(mv,end);}catch(e){console.error(e);end();}const r0=showRun;(function guard(){if(fin)return;if(showRun!==r0){fin=true;res();return;}if(Date.now()-t1>20000){end();return;}setTimeout(guard,500);})();});}));}; // a superseded replay never blocks the queue
 })();
+// v67: reflow on window size changes (iPhone Duo fold/unfold, orientation, keyboard)
+(function(){let raf=0;const re=()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{try{fit();}catch(e){}requestAnimationFrame(()=>{try{fit();}catch(e){}});});};
+ if(window.visualViewport)visualViewport.addEventListener('resize',re);addEventListener('orientationchange',()=>setTimeout(re,250));
+ if(window.ResizeObserver){try{new ResizeObserver(re).observe(document.documentElement);}catch(e){}}
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')re();});re();})();
