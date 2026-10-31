@@ -224,17 +224,24 @@ function resign(g,p){if(g.over)return false;g.over=true;g.resigned=p;g.winner=1-
 function ownHist(g){return (g.mh&&g.mh[puKey(g)])||[];}
 function smartBoost(g,score,k){if(score<=0||!puOk(g,'double')||charges(g)<1)return false;const h=ownHist(g),avg=h.length?h.reduce((a,b)=>a+b,0)/h.length:0,left=(g.team?MOVES:MOVES)-(g.team?g.team.pm[g.turn][g.team.sub[g.turn]]:g.moves[g.turn]);
  if(left<=1)return {d:1,t:0};if(score>=Math.max(k.min,k.mul*avg))return {d:1,t:0};if(left<=2&&score>=avg)return {d:1,t:0};return false;}
-function bestBlast(g,minN){if(!canPower(g)||countFits(g)>=12)return null;let best=null;for(const type of puTypes(g))for(let r=0;r<N;r++)for(let c=0;c<N;c++){const n=blastCells(type,r,c).filter(([y,x])=>g.board[y][x]).length;if(!best||n>best.n)best={type,r,c,n};}
+function crowded(g){let e=0;for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(!g.board[r][c])e++;return countFits(g)<28||e<Math.round(20*N*N/64);}
+function bestBlast(g,minN){if(!canPower(g)||!g.power||g.power[g.turn]<1||!crowded(g))return null;let best=null;for(const type of puTypes(g))for(let r=0;r<N;r++)for(let c=0;c<N;c++){let n=0,st=0;for(const [y,x] of blastCells(type,r,c)){const t=g.board[y][x];if(t){if(t.star)st++;else n++;}}const v=n-st*2;if(!best||v>best.n)best={type,r,c,n:v};}
  if(best&&best.n>=minN)return {type:best.type,r:best.r,c:best.c,...blast(g,best.type,best.r,best.c)};return null;}
+// v-blast: AI considers Bomb/Cross like a human: try top clearing spots, keep one only if the follow-up move clearly beats the plain move
+function smartBlast(g,o){if(!canPower(g)||!g.power||g.power[g.turn]<1)return null;const types=puTypes(g);if(!types.length)return null;const fits=countFits(g);if(fits>=(o.fits||30))return null;
+ const cand=[];for(const type of types)for(let r=0;r<N;r++)for(let c=0;c<N;c++){let n=0,st=0;for(const [y,x] of blastCells(type,r,c)){const t=g.board[y][x];if(t){if(t.star)st++;else n++;}}const v=n-st*3;if(v>=(o.minN||4))cand.push({type,r,c,v});}
+ if(!cand.length)return null;cand.sort((a,b)=>b.v-a.v);const q={beam:o.beam||10,maxPieces:2,ms:o.ms||80};const base=o.base!=null?o.base:aiMove(g,q).score;let best=null;
+ for(const k of cand.slice(0,o.top||4)){const G2=Object.assign({},g,{board:g.board.map(r=>r.slice())});for(const [y,x] of blastCells(k.type,k.r,k.c))G2.board[y][x]=null;const s=aiMove(G2,q).score+k.v*15+(countFits(G2)-fits)*5;if(!best||s>best.s)best={...k,s};}
+ if(!best||best.s<base*(o.gain||1.3)+(o.add||100))return null;return {type:best.type,r:best.r,c:best.c,...blast(g,best.type,best.r,best.c)};}
 function ladderPlan(g,level){useRules(g);const rng=g.rng||Math.random;const rec=(m,boost,bl,swap)=>({blast:bl||null,pl:m.pl,boost,swap:swap||false,swapS:swap?swap.s:undefined});
- if(level==='medium'){const m=aiMove(g,{beam:8,maxPieces:2,ms:250});let pl=m;if(rng()<0.3){const alt=aiMove(g,{beam:3,maxPieces:1,ms:120});if(alt.pl.length)pl=alt;}
-  return rec(pl,pl.score>=800&&puOk(g,'double')&&charges(g)>0?{d:1,t:0}:false);}
- if(level==='hard'){const m=aiMove(g,{beam:20,maxPieces:2,ms:400});return rec(m,m.score>=1500&&puOk(g,'double')&&charges(g)>0?{d:1,t:0}:false);}
- if(level==='expert'){const bl=bestBlast(g,5);const m=aiMove(g,{beam:200,maxPieces:3,ms:900});return rec(m,smartBoost(g,m.score,{min:2500,mul:1.6}),bl);}
+ if(level==='medium'){const bl=bestBlast(g,3)||((rng()<0.5)?smartBlast(g,{minN:5,fits:20,top:3}):null);const m=aiMove(g,{beam:8,maxPieces:2,ms:250});let pl=m;if(rng()<0.3){const alt=aiMove(g,{beam:3,maxPieces:1,ms:120});if(alt.pl.length)pl=alt;}
+  return rec(pl,!bl&&pl.score>=800&&puOk(g,'double')&&charges(g)>0?{d:1,t:0}:false,bl);}
+ if(level==='hard'){const bl=bestBlast(g,4)||smartBlast(g,{minN:4,fits:24,top:4});const m=aiMove(g,{beam:20,maxPieces:2,ms:400});return rec(m,!bl&&m.score>=1500&&puOk(g,'double')&&charges(g)>0?{d:1,t:0}:false,bl);}
+ if(level==='expert'){const bl=bestBlast(g,5)||smartBlast(g,{minN:4,fits:30,top:5,ms:120});const m=aiMove(g,{beam:200,maxPieces:3,ms:900});return rec(m,smartBoost(g,m.score,{min:2500,mul:1.6}),bl);}
  /* master: widest search, best Double timing, star saving, and uses its free swap on a dead piece */
  const m=aiMove(g,{beam:500,maxPieces:3,ms:2200,saveStars:true});const h=ownHist(g),avg=h.length?h.reduce((a,b)=>a+b,0)/h.length:0,left=MOVES-(g.team?g.team.pm[g.turn][g.team.sub[g.turn]]:g.moves[g.turn]);
  if(g.swaps[g.turn]>0&&left>2&&m.score<Math.max(300,0.35*avg)){const rack=g.racks[g.turn],used=new Set(m.pl.map(t=>Math.floor(t.slot/3)));const s0=[0,1,2].find(s=>rack[3*s]&&!used.has(s));if(s0!=null)return rec({pl:[]},false,null,{s:s0});}
- const bl=m.score<300?bestBlast(g,4):null;const m2=bl?aiMove(g,{beam:400,maxPieces:3,ms:900,saveStars:true}):m;return rec(m2,smartBoost(g,m2.score,{min:3000,mul:2}),bl);}
+ const bl=bestBlast(g,5)||smartBlast(g,{minN:4,fits:30,top:6,ms:150,base:m.score});const m2=bl?aiMove(g,{beam:400,maxPieces:3,ms:900,saveStars:true}):m;return rec(m2,smartBoost(g,m2.score,{min:3000,mul:2}),bl);}
 const api={puOk,puTypes,puKey,setN,teamInit,seat,teamCoins,totalMoves,get N(){return N;},useRules,evaluate,single,resign,norm,capB,charges,spendCharge,dbl,expertMove,expertPlan,masterMove,masterPlan,pairsValue,previewMove,START_COINS,WIN_COINS,EXTRA_COST,canSwap,powerCost,usePower,LEVELS,canPower,blastCells,blast,countFits,aiPlan,movePiece,rotateInPlace,piece,normO,rotateO,pieceTiles,validPiece,rnd,deal,COLORS,MOVES,RACK,mult,newGame,canPlace,inLine,validNext,isLine,evaluate,commit,swap,aiMove,isFinal,refill};
 // v66: a plan never asks for a power-up the player may not use (used type / no charges)
 {const _ap=api.aiPlan;api.aiPlan=function(g,l){const m=_ap(g,l);if(m&&m.boost){const B=capB(g,m.boost);m.boost=B.d+B.t?B:false;}return m;};}

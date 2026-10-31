@@ -225,3 +225,6 @@ console.log('ui scripts parse ok');
  a.ok(starT/(3*n)>0.06&&starT/(3*n)<0.09,'star tiles '+starT/(3*n));
  const A=L.newGame('ai',(()=>{let q=7;return ()=>(q=(q*16807)%2147483647)/2147483647;})()),B=L.newGame('ai',(()=>{let q=7;return ()=>(q=(q*16807)%2147483647)/2147483647;})());a.deepEqual(A.racks,B.racks,'seeded deals identical');a.equal(A.dv,2);
  console.log('v67 deal odds ok: same',(f(same)*100).toFixed(1)+'% two',(f(two)*100).toFixed(1)+'% diff',(f(diff)*100).toFixed(1)+'% star tiles',(starT/(3*n)*100).toFixed(1)+'%');}
+
+{let sd=11;const r=()=>(sd=(sd*16807)%2147483647)/2147483647;let used=0;for(const lv of ['hard','expert']){for(let gi=0;gi<3;gi++){const G=L.newGame('ai',r);let k=0;while(!G.over&&k<40){const m=L.aiPlan(G,lv);if(m.blast)used++;a.ok(m.pl.length%3===0);L.commit(G,m.pl,m.boost);k++;}}}
+ a.ok(used>0,'AI should use Bomb/Cross sometimes');console.log('AI blasts used:',used);}
